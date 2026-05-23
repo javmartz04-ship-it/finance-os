@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance OS — Javier</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  [x-cloak]{display:none!important}
+  *{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#334155;border-radius:10px}
+  input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  input[type=number]{-moz-appearance:textfield}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+  .toast{animation:slideUp .3s ease,fadeOut .4s ease 1.6s forwards}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  @keyframes fadeOut{to{opacity:0;transform:translateY(-10px)}}
+  .editable-amt{background:transparent;border:none;outline:none;text-align:right;font-weight:700;width:90px;padding:4px 6px;border-radius:6px;transition:background .15s;font-variant-numeric:tabular-nums}
+  .editable-amt:hover{background:rgba(59,130,246,0.08)}
+  .editable-amt:focus{background:rgba(59,130,246,0.12)}
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen" x-data="app()" x-init="init()" x-cloak>
+
+<div class="flex min-h-screen">
+
+  <!-- SIDEBAR -->
+  <aside class="w-60 bg-slate-900 flex flex-col fixed top-0 left-0 h-screen z-40 shadow-2xl">
+    <div class="px-5 py-5 border-b border-slate-700/50">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg">$</div>
+        <div>
+          <div class="text-white font-bold text-sm leading-none">Finance OS</div>
+          <div class="text-slate-400 text-xs mt-0.5">Javier Martinez</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-4 py-3 border-b border-slate-700/50">
+      <div class="flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2">
+        <button @click="prevMonth()" class="text-slate-400 hover:text-white transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <div class="flex-1 text-center text-white text-sm font-semibold num" x-text="monthName + ' ' + currentYear"></div>
+        <button @click="nextMonth()" class="text-slate-400 hover:text-white transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+      <template x-for="item in navItems" :key="item.id">
+        <button @click="switchTab(item.id)" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all"
+          :class="currentTab===item.id ? 'bg-blue-500/15 text-blue-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+          <span class="text-base leading-none" x-text="item.icon"></span>
+          <span class="text-sm font-medium flex-1" x-text="item.label"></span>
+          <template x-if="item.id==='bills' && upcomingBillsCount > 0">
+            <span class="bg-amber-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" x-text="upcomingBillsCount"></span>
+          </template>
+        </button>
+      </template>
+    </nav>
+
+    <div class="px-4 py-4 border-t border-slate-700/50 space-y-2">
+      <button @click="exportCSV()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-xl text-xs font-medium transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Export CSV
+      </button>
+      <button @click="exportJSON()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-xl text-xs font-medium transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+        Backup JSON
+      </button>
+      <button @click="$refs.jsonImport.click()" class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-xl text-xs font-medium transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        Restore Backup
+      </button>
+      <input type="file" x-ref="jsonImport" accept=".json" @change="importJSON($event)" class="hidden"/>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="ml-60 flex-1">
+
+    <header class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
+      <div>
+        <h1 class="text-lg font-bold text-slate-900" x-text="navItems.find(n=>n.id===currentTab)?.label"></h1>
+        <p class="text-xs text-slate-400 mt-0.5" x-text="monthName + ' ' + currentYear"></p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+          <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+          Auto-saved
+        </div>
+        <button @click="openAddModal()" class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          Add Entry
+        </button>
+      </div>
+    </header>
+
+    <div class="p-8">
+
+      <!-- ============ OVERVIEW ============ -->
+      <div x-show="currentTab==='overview'">
+
+        <!-- KPI ROW -->
+        <div class="grid grid-cols-5 gap-4 mb-6">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Income</span>
+              <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center text-sm">💰</div>
+            </div>
+            <div class="text-2xl font-black text-emerald-600 num" x-text="fmt(totalIncome)"></div>
+            <div class="text-[11px] text-slate-400 mt-0.5">This month</div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Expenses</span>
+              <div class="w-7 h-7 bg-red-50 rounded-lg flex items-center justify-center text-sm">💸</div>
+            </div>
+            <div class="text-2xl font-black text-red-500 num" x-text="fmt(allSpend)"></div>
+            <div class="text-[11px] text-slate-400 mt-0.5 num" x-text="'Bills '+fmt(monthBillsTotal)+' + '+fmt(totalExpenses)"></div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cash Flow</span>
+              <div class="w-7 h-7 rounded-lg flex items-center justify-center text-sm" :class="cashFlow>=0?'bg-emerald-50':'bg-red-50'">
+                <span x-text="cashFlow>=0?'📈':'📉'"></span>
+              </div>
+            </div>
+            <div class="text-2xl font-black num" :class="cashFlow>=0?'text-emerald-600':'text-red-500'" x-text="fmt(cashFlow)"></div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Income − Expenses</div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Savings Rate</span>
+              <div class="w-7 h-7 bg-purple-50 rounded-lg flex items-center justify-center text-sm">🎯</div>
+            </div>
+            <div class="text-2xl font-black text-slate-900 num" x-text="savingsRate.toFixed(1)+'%'"></div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+              <div class="h-1.5 rounded-full transition-all" :class="savingsRate>=20?'bg-emerald-500':savingsRate>=10?'bg-amber-500':'bg-red-500'" :style="'width:'+Math.min(Math.max(savingsRate,0),100)+'%'"></div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bills Paid</span>
+              <div class="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center text-sm">📅</div>
+            </div>
+            <div class="text-2xl font-black text-slate-900 num"><span x-text="monthBills.filter(b=>b.paid).length"></span><span class="text-slate-300 text-lg">/<span x-text="monthBills.length"></span></span></div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+              <div class="h-1.5 rounded-full bg-emerald-500 transition-all" :style="'width:'+(monthBills.length>0?(monthBills.filter(b=>b.paid).length/monthBills.length)*100:0)+'%'"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- THREE PIE CHARTS -->
+        <div class="grid grid-cols-3 gap-5 mb-6">
+
+          <!-- Money Flow -->
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
+            <div class="font-bold text-slate-900">Money Flow</div>
+            <div class="text-xs text-slate-400 mt-0.5 mb-3">Income, expenses & bills ratio</div>
+            <div class="relative flex items-center justify-center" style="height:200px"><canvas id="chartFlow"></canvas></div>
+            <div class="space-y-1.5 mt-4" id="flowLegend"></div>
+          </div>
+
+          <!-- Bills Pie -->
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
+            <div class="font-bold text-slate-900">Bills Breakdown</div>
+            <div class="text-xs text-slate-400 mt-0.5 mb-3">By pay period & subs</div>
+            <div class="relative flex items-center justify-center" style="height:200px"><canvas id="chartBills"></canvas></div>
+            <div class="space-y-1.5 mt-4" id="billsLegend"></div>
+          </div>
+
+          <!-- Financial Health -->
+          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <div class="font-bold text-slate-900">Financial Health</div>
+                <div class="text-xs text-slate-400 mt-0.5">Saved vs spent</div>
+              </div>
+              <div class="text-right">
+                <div class="text-2xl font-black num" :class="savingsRate>=20?'text-emerald-600':savingsRate>=10?'text-amber-500':'text-red-500'" x-text="savingsRate.toFixed(0)+'%'"></div>
+                <div class="text-[10px] font-bold uppercase tracking-widest" style="color:#94A3B8">Savings</div>
+              </div>
+            </div>
+            <div class="relative flex items-center justify-center" style="height:200px"><canvas id="chartHealth"></canvas></div>
+            <div class="space-y-1.5 mt-4">
+              <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" :style="'background:'+(savingsRate>=20?'#10B981':savingsRate>=10?'#F59E0B':'#EF4444')"></span><span class="text-slate-600 font-medium">Saved</span></div>
+                <span class="font-bold num" x-text="fmt(Math.max(cashFlow,0))"></span>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#FCA5A5"></span><span class="text-slate-600 font-medium">Spent</span></div>
+                <span class="font-bold num" x-text="fmt(allSpend)"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============ BILLS ============ -->
+      <div x-show="currentTab==='bills'">
+
+        <div class="grid grid-cols-5 gap-4 mb-7">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">1st Period</div>
+            <div class="text-2xl font-black text-slate-900 num" x-text="fmt(period1Total)"></div>
+            <div class="text-xs text-slate-400 mt-1" x-text="monthBills.filter(b=>b.period==='1st'&&b.paid).length+'/'+monthBills.filter(b=>b.period==='1st').length+' paid'"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">15th Period</div>
+            <div class="text-2xl font-black text-slate-900 num" x-text="fmt(period2Total)"></div>
+            <div class="text-xs text-slate-400 mt-1" x-text="monthBills.filter(b=>b.period==='15th'&&b.paid).length+'/'+monthBills.filter(b=>b.period==='15th').length+' paid'"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Subscriptions</div>
+            <div class="text-2xl font-black text-emerald-600 num" x-text="fmt(subTotal)"></div>
+            <div class="text-xs text-slate-400 mt-1" x-text="monthBills.filter(b=>b.period==='sub').length+' active'"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Monthly Total</div>
+            <div class="text-2xl font-black text-slate-900 num" x-text="fmt(period1Total+period2Total+subTotal)"></div>
+            <div class="text-xs text-emerald-500 mt-1" x-text="monthBills.filter(b=>b.paid).length+' paid ✓'"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Still Owed</div>
+            <div class="text-2xl font-black text-amber-500 num" x-text="fmt(monthBills.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0))"></div>
+            <div class="text-xs text-slate-400 mt-1" x-text="monthBills.filter(b=>!b.paid).length+' outstanding'"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-5">
+
+          <!-- Period 1 -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-900 flex items-center gap-2">
+                  Pay Period 1
+                  <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">Around the 1st</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5">Bills due at start of month</div>
+              </div>
+              <button @click="openBillModal('1st')" class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
+            </div>
+
+            <div>
+              <template x-if="monthBills.filter(b=>b.period==='1st').length===0">
+                <div class="px-6 py-10 text-center text-slate-400 text-sm">No bills yet — add your first one</div>
+              </template>
+              <template x-for="bill in monthBills.filter(b=>b.period==='1st')" :key="bill.id">
+                <div class="px-5 py-3.5 flex items-center gap-3 border-b border-slate-50 last:border-0" :class="bill.paid?'opacity-50':''">
+                  <button @click="togglePaid(bill.id)" class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all"
+                    :class="bill.paid?'bg-emerald-500 border-emerald-500 text-white':'border-slate-300 hover:border-blue-400'">
+                    <svg x-show="bill.paid" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                  </button>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-2" :class="bill.paid?'line-through':''">
+                      <span x-text="bill.name"></span>
+                      <span x-show="bill.autopay" class="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium normal-case" style="text-decoration:none">Auto</span>
+                    </div>
+                    <div class="text-xs text-slate-400" x-text="bill.category"></div>
+                  </div>
+                  <div class="flex items-center text-slate-900 font-bold text-sm num">
+                    <span class="text-slate-400 mr-0.5">$</span>
+                    <input type="number" :value="bill.amount" @change="updateBillAmount(bill.id,$event.target.value)" class="editable-amt text-slate-900" placeholder="0"/>
+                  </div>
+                  <div class="flex gap-1">
+                    <button @click="editBill(bill)" class="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button @click="deleteBill(bill.id)" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
+              <button @click="markAllPaid('1st')" class="text-xs text-slate-500 hover:text-emerald-600 font-semibold transition-colors">✓ Mark all paid</button>
+              <div class="text-sm font-black text-slate-900 num" x-text="fmt(period1Total)"></div>
+            </div>
+          </div>
+
+          <!-- Period 2 -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-900 flex items-center gap-2">
+                  Pay Period 2
+                  <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">Around the 15th</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5">Bills due mid-month</div>
+              </div>
+              <button @click="openBillModal('15th')" class="text-xs bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
+            </div>
+
+            <div>
+              <template x-if="monthBills.filter(b=>b.period==='15th').length===0">
+                <div class="px-6 py-10 text-center text-slate-400 text-sm">No bills yet — add your first one</div>
+              </template>
+              <template x-for="bill in monthBills.filter(b=>b.period==='15th')" :key="bill.id">
+                <div class="px-5 py-3.5 flex items-center gap-3 border-b border-slate-50 last:border-0" :class="bill.paid?'opacity-50':''">
+                  <button @click="togglePaid(bill.id)" class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all"
+                    :class="bill.paid?'bg-emerald-500 border-emerald-500 text-white':'border-slate-300 hover:border-purple-400'">
+                    <svg x-show="bill.paid" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                  </button>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-2" :class="bill.paid?'line-through':''">
+                      <span x-text="bill.name"></span>
+                      <span x-show="bill.autopay" class="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">Auto</span>
+                    </div>
+                    <div class="text-xs text-slate-400" x-text="bill.category"></div>
+                  </div>
+                  <div class="flex items-center text-slate-900 font-bold text-sm num">
+                    <span class="text-slate-400 mr-0.5">$</span>
+                    <input type="number" :value="bill.amount" @change="updateBillAmount(bill.id,$event.target.value)" class="editable-amt text-slate-900" placeholder="0"/>
+                  </div>
+                  <div class="flex gap-1">
+                    <button @click="editBill(bill)" class="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button @click="deleteBill(bill.id)" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
+              <button @click="markAllPaid('15th')" class="text-xs text-slate-500 hover:text-emerald-600 font-semibold transition-colors">✓ Mark all paid</button>
+              <div class="text-sm font-black text-slate-900 num" x-text="fmt(period2Total)"></div>
+            </div>
+          </div>
+
+          <!-- Subscriptions -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-900 flex items-center gap-2">
+                  Subscriptions
+                  <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Recurring</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-0.5">Auto-billed monthly charges</div>
+              </div>
+              <button @click="openBillModal('sub')" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
+            </div>
+
+            <div>
+              <template x-if="monthBills.filter(b=>b.period==='sub').length===0">
+                <div class="px-6 py-10 text-center text-slate-400 text-sm">No subscriptions yet</div>
+              </template>
+              <template x-for="bill in monthBills.filter(b=>b.period==='sub')" :key="bill.id">
+                <div class="px-5 py-3.5 flex items-center gap-3 border-b border-slate-50 last:border-0" :class="bill.paid?'opacity-50':''">
+                  <button @click="togglePaid(bill.id)" class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all"
+                    :class="bill.paid?'bg-emerald-500 border-emerald-500 text-white':'border-slate-300 hover:border-emerald-400'">
+                    <svg x-show="bill.paid" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                  </button>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-2" :class="bill.paid?'line-through':''">
+                      <span x-text="bill.name"></span>
+                      <span x-show="bill.autopay" class="text-xs bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-medium">Auto</span>
+                    </div>
+                    <div class="text-xs text-slate-400" x-text="bill.category"></div>
+                  </div>
+                  <div class="flex items-center text-slate-900 font-bold text-sm num">
+                    <span class="text-slate-400 mr-0.5">$</span>
+                    <input type="number" :value="bill.amount" @change="updateBillAmount(bill.id,$event.target.value)" class="editable-amt text-slate-900" placeholder="0"/>
+                  </div>
+                  <div class="flex gap-1">
+                    <button @click="editBill(bill)" class="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button @click="deleteBill(bill.id)" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
+              <button @click="markAllPaid('sub')" class="text-xs text-slate-500 hover:text-emerald-600 font-semibold transition-colors">✓ Mark all paid</button>
+              <div class="text-sm font-black text-emerald-600 num" x-text="fmt(subTotal)"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-800 flex items-center gap-2">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span><strong>Tip:</strong> Click any amount to edit it directly. Your data auto-saves to this browser. Use <strong>Backup JSON</strong> in the sidebar to download a safety copy.</span>
+        </div>
+      </div>
+
+      <!-- ============ BUDGET ============ -->
+      <div x-show="currentTab==='budget'">
+        <div class="flex items-center justify-between mb-6">
+          <p class="text-sm text-slate-500">Set monthly budgets per category and track actual spend</p>
+          <button @click="openBudgetModal()" class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Category</button>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+          <div class="grid grid-cols-3 divide-x divide-slate-100 text-center">
+            <div class="px-6">
+              <div class="text-2xl font-black text-slate-900 num" x-text="fmt(budgets.reduce((s,c)=>s+c.budget,0))"></div>
+              <div class="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Total Budget</div>
+            </div>
+            <div class="px-6">
+              <div class="text-2xl font-black text-red-500 num" x-text="fmt(totalExpenses)"></div>
+              <div class="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Total Spent</div>
+            </div>
+            <div class="px-6">
+              <div class="text-2xl font-black num" :class="(budgets.reduce((s,c)=>s+c.budget,0)-totalExpenses)>=0?'text-emerald-600':'text-red-500'"
+                x-text="fmt(budgets.reduce((s,c)=>s+c.budget,0)-totalExpenses)"></div>
+              <div class="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Remaining</div>
+            </div>
+          </div>
+        </div>
+
+        <template x-if="budgets.length===0">
+          <div class="bg-white rounded-2xl p-12 text-center text-slate-400 shadow-sm border border-slate-100">
+            <div class="text-5xl mb-3">📊</div>
+            <div class="font-semibold text-slate-600">No budget categories yet</div>
+            <div class="text-sm mt-1">Add your first category to start tracking</div>
+          </div>
+        </template>
+
+        <div class="space-y-4">
+          <template x-for="cat in budgets" :key="cat.id">
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+              <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0" :style="'background:'+cat.color+'18'">
+                  <span x-text="cat.emoji||'📦'"></span>
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center justify-between mb-2.5">
+                    <div class="font-bold text-slate-900" x-text="cat.name"></div>
+                    <div class="flex items-center gap-4 text-sm num">
+                      <span class="text-slate-500">Spent: <strong class="text-slate-800" x-text="fmt(catSpend(cat.name))"></strong></span>
+                      <span class="text-slate-300">|</span>
+                      <span class="text-slate-500">Budget: $<input type="number" :value="cat.budget" @change="cat.budget=Number($event.target.value);save()" class="font-bold text-slate-800 w-20 outline-none border-b border-slate-200 focus:border-blue-400 bg-transparent text-right" /></span>
+                      <span class="font-bold" :class="catSpend(cat.name)>cat.budget?'text-red-500':'text-emerald-600'"
+                        x-text="catSpend(cat.name)>cat.budget?'⚠ Over '+fmt(catSpend(cat.name)-cat.budget):'✓ '+fmt(cat.budget-catSpend(cat.name))+' left'"></span>
+                    </div>
+                  </div>
+                  <div class="w-full bg-slate-100 rounded-full h-2.5">
+                    <div class="h-2.5 rounded-full transition-all duration-700"
+                      :style="'width:'+Math.min((catSpend(cat.name)/cat.budget)*100,100)+'%;background:'+(catSpend(cat.name)/cat.budget>1?'#EF4444':catSpend(cat.name)/cat.budget>0.8?'#F59E0B':cat.color)"></div>
+                  </div>
+                  <div class="flex justify-between text-xs text-slate-400 mt-1.5 num">
+                    <span x-text="Math.round((catSpend(cat.name)/cat.budget)*100)+'% used'"></span>
+                    <span x-text="fmt(cat.budget-catSpend(cat.name))+' remaining'"></span>
+                  </div>
+                </div>
+                <button @click="budgets=budgets.filter(c=>c.id!==cat.id);save()" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- ============ INCOME ============ -->
+      <div x-show="currentTab==='income'">
+        <div class="flex items-center justify-between mb-6">
+          <p class="text-sm text-slate-500">All income sources for <span class="font-semibold text-slate-700" x-text="monthName+' '+currentYear"></span></p>
+          <button @click="openIncomeModal()" class="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Income</button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-5 mb-7">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Income</div>
+            <div class="text-2xl font-black text-emerald-600 num" x-text="fmt(totalIncome)"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Tax Reserve (25%)</div>
+            <div class="text-2xl font-black text-amber-500 num" x-text="fmt(totalIncome*0.25)"></div>
+            <div class="text-xs text-slate-400 mt-1">Set aside for taxes</div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Spendable</div>
+            <div class="text-2xl font-black text-slate-900 num" x-text="fmt(totalIncome*0.75)"></div>
+            <div class="text-xs text-slate-400 mt-1">After tax reserve</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+          <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-900">Income Entries</div>
+          <template x-if="incomeEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length===0">
+            <div class="px-6 py-14 text-center text-slate-400">
+              <div class="text-5xl mb-3">💰</div>
+              <div class="font-semibold text-slate-500">No income recorded yet</div>
+              <div class="text-sm mt-1">Add your income sources above</div>
+            </div>
+          </template>
+          <template x-for="e in incomeEntries.filter(e=>e.month===currentMonth&&e.year===currentYear)" :key="e.id">
+            <div class="px-6 py-4 flex items-center gap-4 border-b border-slate-50 last:border-0">
+              <div class="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center">
+                <span x-text="catEmoji(e.category)"></span>
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-semibold text-slate-900" x-text="e.source"></div>
+                <div class="text-xs text-slate-400" x-text="e.date+' · '+e.category"></div>
+              </div>
+              <div class="text-emerald-600 font-bold num" x-text="'+'+fmt(e.amount)"></div>
+              <button @click="incomeEntries=incomeEntries.filter(x=>x.id!==e.id);save();refreshCharts()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- ============ EXPENSES ============ -->
+      <div x-show="currentTab==='expenses'">
+        <div class="flex items-center justify-between mb-6">
+          <p class="text-sm text-slate-500">All expenses for <span class="font-semibold text-slate-700" x-text="monthName+' '+currentYear"></span></p>
+          <button @click="openExpenseModal()" class="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Expense</button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-5 mb-7">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Expenses</div>
+            <div class="text-2xl font-black text-red-500 num" x-text="fmt(totalExpenses)"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Transactions</div>
+            <div class="text-2xl font-black text-slate-900 num" x-text="expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Avg per Entry</div>
+            <div class="text-2xl font-black text-slate-900 num" x-text="expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length>0?fmt(totalExpenses/expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length):'$0'"></div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+          <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-900">Expense Entries</div>
+          <template x-if="expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length===0">
+            <div class="px-6 py-14 text-center text-slate-400">
+              <div class="text-5xl mb-3">💸</div>
+              <div class="font-semibold text-slate-500">No expenses recorded yet</div>
+            </div>
+          </template>
+          <template x-for="e in expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear)" :key="e.id">
+            <div class="px-6 py-4 flex items-center gap-4 border-b border-slate-50 last:border-0">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center" :style="'background:'+catColor(e.category)+'20'">
+                <span x-text="catEmoji(e.category)"></span>
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-semibold text-slate-900" x-text="e.name"></div>
+                <div class="text-xs text-slate-400" x-text="e.date+' · '+e.category"></div>
+              </div>
+              <div class="text-red-500 font-bold num" x-text="'-'+fmt(e.amount)"></div>
+              <button @click="expenseEntries=expenseEntries.filter(x=>x.id!==e.id);save();refreshCharts()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- ============ NET WORTH ============ -->
+      <div x-show="currentTab==='networth'">
+        <div class="grid grid-cols-3 gap-5 mb-7">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Assets</div>
+            <div class="text-2xl font-black text-emerald-600 num" x-text="fmt(totalAssets)"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Liabilities</div>
+            <div class="text-2xl font-black text-red-500 num" x-text="fmt(totalLiabilities)"></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Net Worth</div>
+            <div class="text-2xl font-black num" :class="netWorth>=0?'text-blue-600':'text-red-600'" x-text="fmt(netWorth)"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6">
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div class="font-bold text-slate-900">Assets 💎</div>
+              <button @click="openAssetModal('asset')" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
+            </div>
+            <template x-if="assets.length===0">
+              <div class="px-6 py-10 text-center text-slate-400 text-sm">No assets yet</div>
+            </template>
+            <template x-for="a in assets" :key="a.id">
+              <div class="px-6 py-4 flex items-center gap-3 border-b border-slate-50 last:border-0">
+                <div class="flex-1">
+                  <div class="text-sm font-semibold text-slate-900" x-text="a.name"></div>
+                  <div class="text-xs text-slate-400" x-text="a.type"></div>
+                </div>
+                <div class="flex items-center gap-1 text-emerald-600 font-bold text-sm num">
+                  $<input type="number" :value="a.value" @change="a.value=Number($event.target.value);save()" class="w-24 text-right outline-none border-b border-transparent focus:border-emerald-400 bg-transparent text-emerald-600 font-bold" />
+                </div>
+                <button @click="assets=assets.filter(x=>x.id!==a.id);save()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </template>
+            <div class="px-6 py-3 border-t border-slate-100 text-right text-sm font-black text-emerald-600 num" x-text="'Total: '+fmt(totalAssets)"></div>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div class="font-bold text-slate-900">Liabilities 📉</div>
+              <button @click="openAssetModal('liability')" class="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
+            </div>
+            <template x-if="liabilities.length===0">
+              <div class="px-6 py-10 text-center text-slate-400 text-sm">No liabilities yet</div>
+            </template>
+            <template x-for="l in liabilities" :key="l.id">
+              <div class="px-6 py-4 flex items-center gap-3 border-b border-slate-50 last:border-0">
+                <div class="flex-1">
+                  <div class="text-sm font-semibold text-slate-900" x-text="l.name"></div>
+                  <div class="text-xs text-slate-400" x-text="l.type"></div>
+                </div>
+                <div class="flex items-center gap-1 text-red-500 font-bold text-sm num">
+                  $<input type="number" :value="l.value" @change="l.value=Number($event.target.value);save()" class="w-24 text-right outline-none border-b border-transparent focus:border-red-400 bg-transparent text-red-500 font-bold" />
+                </div>
+                <button @click="liabilities=liabilities.filter(x=>x.id!==l.id);save()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </template>
+            <div class="px-6 py-3 border-t border-slate-100 text-right text-sm font-black text-red-500 num" x-text="'Total: '+fmt(totalLiabilities)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ GOALS ============ -->
+      <div x-show="currentTab==='goals'">
+        <div class="flex items-center justify-between mb-6">
+          <p class="text-sm text-slate-500">Savings goals and financial targets</p>
+          <button @click="openGoalModal()" class="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Goal</button>
+        </div>
+        <template x-if="goals.length===0">
+          <div class="bg-white rounded-2xl p-14 text-center text-slate-400 shadow-sm border border-slate-100">
+            <div class="text-5xl mb-3">🎯</div>
+            <div class="font-semibold text-slate-500">No goals yet</div>
+            <div class="text-sm mt-1">Set your first savings target above</div>
+          </div>
+        </template>
+        <div class="grid grid-cols-2 gap-5">
+          <template x-for="g in goals" :key="g.id">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <div class="flex items-start justify-between mb-5">
+                <div>
+                  <div class="font-bold text-slate-900" x-text="g.name"></div>
+                  <div class="text-xs text-slate-400 mt-0.5" x-text="g.description||'Savings goal'"></div>
+                </div>
+                <button @click="goals=goals.filter(x=>x.id!==g.id);save()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div class="flex items-center gap-5 mb-5">
+                <div class="relative w-20 h-20 flex-shrink-0">
+                  <svg class="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="32" fill="none" stroke="#F1F5F9" stroke-width="7"/>
+                    <circle cx="40" cy="40" r="32" fill="none" :stroke="g.color||'#3B82F6'" stroke-width="7" stroke-linecap="round"
+                      :stroke-dasharray="201"
+                      :stroke-dashoffset="201-(201*Math.min(g.current/g.target,1))"
+                      style="transition:stroke-dashoffset 1s ease"/>
+                  </svg>
+                  <div class="absolute inset-0 flex items-center justify-center text-sm font-black text-slate-900 num" x-text="Math.round((g.current/g.target)*100)+'%'"></div>
+                </div>
+                <div>
+                  <div class="text-2xl font-black text-slate-900 num" x-text="fmt(g.current)"></div>
+                  <div class="text-xs text-slate-400 num">of <strong x-text="fmt(g.target)"></strong> goal</div>
+                  <div class="text-xs text-slate-400 mt-0.5 num" x-text="fmt(g.target-g.current)+' to go'"></div>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5 block">Update saved amount</label>
+                <input type="number" :value="g.current" @change="g.current=Number($event.target.value);save()" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-400 focus:ring-2 focus:ring-purple-50 outline-none num" />
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Toast -->
+<div x-show="toastMsg" x-transition.opacity class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium toast" x-text="toastMsg"></div>
+
+<!-- ===== MODALS ===== -->
+
+<div x-show="modal==='bill'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900" x-text="editingId?'Edit Bill':'Add New Bill'"></h3></div>
+    <div class="px-6 py-5 space-y-4">
+      <div><label class="lbl">Bill Name *</label><input type="text" x-model="form.name" placeholder="e.g., Rent, Netflix, Electric" class="inp"/></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="lbl">Amount</label><input type="number" x-model="form.amount" placeholder="0.00" class="inp"/></div>
+        <div><label class="lbl">Pay Period *</label>
+          <select x-model="form.period" class="inp"><option value="1st">Around the 1st</option><option value="15th">Around the 15th</option><option value="sub">Subscription</option></select>
+        </div>
+      </div>
+      <div><label class="lbl">Category</label>
+        <select x-model="form.category" class="inp">
+          <option>Housing</option><option>Utilities</option><option>Subscriptions</option><option>Insurance</option><option>Transportation</option><option>Food</option><option>Health</option><option>Business</option><option>Debt</option><option>Other</option>
+        </select>
+      </div>
+      <label class="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" x-model="form.autopay" class="w-4 h-4 rounded accent-blue-500"/>
+        <span class="text-sm text-slate-700">Auto-pay enabled</span>
+      </label>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+      <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+      <button @click="saveBill()" class="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-colors">Save Bill</button>
+    </div>
+  </div>
+</div>
+
+<div x-show="modal==='income'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900">Add Income</h3></div>
+    <div class="px-6 py-5 space-y-4">
+      <div><label class="lbl">Source *</label><input type="text" x-model="form.source" placeholder="e.g., YouTube, Sponsorship, Client" class="inp"/></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="lbl">Amount *</label><input type="number" x-model="form.amount" placeholder="0.00" class="inp"/></div>
+        <div><label class="lbl">Date</label><input type="date" x-model="form.date" class="inp"/></div>
+      </div>
+      <div><label class="lbl">Category</label>
+        <select x-model="form.category" class="inp"><option>YouTube</option><option>Sponsorship</option><option>Course</option><option>Consulting</option><option>Freelance</option><option>Investment</option><option>Other</option></select>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+      <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+      <button @click="saveIncome()" class="flex-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-colors">Add Income</button>
+    </div>
+  </div>
+</div>
+
+<div x-show="modal==='expense'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900">Add Expense</h3></div>
+    <div class="px-6 py-5 space-y-4">
+      <div><label class="lbl">Name *</label><input type="text" x-model="form.name" placeholder="e.g., Groceries, Gas, Adobe" class="inp"/></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="lbl">Amount *</label><input type="number" x-model="form.amount" placeholder="0.00" class="inp"/></div>
+        <div><label class="lbl">Date</label><input type="date" x-model="form.date" class="inp"/></div>
+      </div>
+      <div><label class="lbl">Category</label>
+        <select x-model="form.category" class="inp"><option>Housing</option><option>Food</option><option>Transportation</option><option>Utilities</option><option>Subscriptions</option><option>Health</option><option>Business</option><option>Entertainment</option><option>Shopping</option><option>Other</option></select>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+      <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+      <button @click="saveExpense()" class="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors">Add Expense</button>
+    </div>
+  </div>
+</div>
+
+<div x-show="modal==='budget'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900">Add Budget Category</h3></div>
+    <div class="px-6 py-5 space-y-4">
+      <div><label class="lbl">Category Name *</label><input type="text" x-model="form.name" placeholder="e.g., Groceries, Entertainment" class="inp"/></div>
+      <div><label class="lbl">Monthly Budget *</label><input type="number" x-model="form.budget" placeholder="0.00" class="inp"/></div>
+      <div><label class="lbl">Emoji</label><input type="text" x-model="form.emoji" placeholder="📦" class="inp"/></div>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+      <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+      <button @click="saveBudget()" class="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-colors">Add Category</button>
+    </div>
+  </div>
+</div>
+
+<div x-show="modal==='asset'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900" x-text="form.mode==='asset'?'Add Asset':'Add Liability'"></h3></div>
+    <div class="px-6 py-5 space-y-4">
+      <div><label class="lbl">Name *</label><input type="text" x-model="form.name" :placeholder="form.mode==='asset'?'e.g., Checking, Stocks':'e.g., Credit Card, Car Loan'" class="inp"/></div>
+      <div><label class="lbl">Value *</label><input type="number" x-model="form.value" placeholder="0.00" class="inp"/></div>
+      <div><label class="lbl">Type</label>
+        <select x-model="form.type" class="inp" x-show="form.mode==='asset'"><option>Cash / Bank Account</option><option>Investment / Stocks</option><option>Real Estate</option><option>Business Equity</option><option>Vehicle</option><option>Other</option></select>
+        <select x-model="form.type" class="inp" x-show="form.mode==='liability'"><option>Credit Card</option><option>Car Loan</option><option>Student Loan</option><option>Mortgage</option><option>Personal Loan</option><option>Other Debt</option></select>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+      <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+      <button @click="saveAsset()" class="flex-1 px-4 py-2.5 text-white rounded-xl text-sm font-semibold transition-colors" :class="form.mode==='asset'?'bg-emerald-500 hover:bg-emerald-600':'bg-red-500 hover:bg-red-600'" x-text="form.mode==='asset'?'Add Asset':'Add Liability'"></button>
+    </div>
+  </div>
+</div>
+
+<div x-show="modal==='goal'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900">Add Savings Goal</h3></div>
+    <div class="px-6 py-5 space-y-4">
+      <div><label class="lbl">Goal Name *</label><input type="text" x-model="form.name" placeholder="e.g., Emergency Fund, Vacation" class="inp"/></div>
+      <div><label class="lbl">Description</label><input type="text" x-model="form.description" placeholder="What is this goal for?" class="inp"/></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="lbl">Target Amount *</label><input type="number" x-model="form.target" placeholder="0.00" class="inp"/></div>
+        <div><label class="lbl">Currently Saved</label><input type="number" x-model="form.current" placeholder="0.00" class="inp"/></div>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+      <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+      <button @click="saveGoal()" class="flex-1 px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-semibold transition-colors">Add Goal</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .lbl{display:block;font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .inp{width:100%;border:1px solid #E2E8F0;border-radius:12px;padding:10px 14px;font-size:14px;outline:none;transition:all .15s}
+  .inp:focus{border-color:#93C5FD;box-shadow:0 0 0 3px rgba(147,197,253,.2)}
+</style>
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.0/dist/cdn.min.js"></script>
+<script>
+function app(){
+  return {
+    currentTab:'overview',
+    currentMonth:new Date().getMonth(),
+    currentYear:new Date().getFullYear(),
+    modal:'',
+    editingId:null,
+    form:{},
+    toastMsg:'',
+
+    bills:[],
+    incomeEntries:[],
+    expenseEntries:[],
+    budgets:[],
+    assets:[],
+    liabilities:[],
+    goals:[],
+    seededMonths:{},
+
+    charts:{},
+
+    navItems:[
+      {id:'overview',label:'Overview',icon:'🏠'},
+      {id:'bills',label:'Bills & Pay Periods',icon:'📅'},
+      {id:'budget',label:'Budget',icon:'📊'},
+      {id:'income',label:'Income',icon:'💰'},
+      {id:'expenses',label:'Expenses',icon:'💸'},
+      {id:'networth',label:'Net Worth',icon:'💎'},
+      {id:'goals',label:'Goals',icon:'🎯'},
+    ],
+
+    get monthName(){return new Date(this.currentYear,this.currentMonth).toLocaleString('default',{month:'long'})},
+    get totalIncome(){return this.incomeEntries.filter(e=>e.month===this.currentMonth&&e.year===this.currentYear).reduce((s,e)=>s+e.amount,0)},
+    get totalExpenses(){return this.expenseEntries.filter(e=>e.month===this.currentMonth&&e.year===this.currentYear).reduce((s,e)=>s+e.amount,0)},
+    get cashFlow(){return this.totalIncome-this.allSpend},
+    get savingsRate(){return this.totalIncome>0?(this.cashFlow/this.totalIncome)*100:0},
+    get totalAssets(){return this.assets.reduce((s,a)=>s+a.value,0)},
+    get totalLiabilities(){return this.liabilities.reduce((s,l)=>s+l.value,0)},
+    get netWorth(){return this.totalAssets-this.totalLiabilities},
+    get monthBills(){return this.bills.filter(b=>b.month===this.currentMonth&&b.year===this.currentYear)},
+    get period1Total(){return this.monthBills.filter(b=>b.period==='1st').reduce((s,b)=>s+b.amount,0)},
+    get period2Total(){return this.monthBills.filter(b=>b.period==='15th').reduce((s,b)=>s+b.amount,0)},
+    get subTotal(){return this.monthBills.filter(b=>b.period==='sub').reduce((s,b)=>s+b.amount,0)},
+    get monthBillsTotal(){return this.monthBills.reduce((s,b)=>s+b.amount,0)},
+    get allSpend(){return this.totalExpenses+this.monthBillsTotal},
+    get upcomingBillsCount(){return this.monthBills.filter(b=>!b.paid).length},
+    get allTransactions(){
+      const inc=this.incomeEntries.filter(e=>e.month===this.currentMonth&&e.year===this.currentYear).map(e=>({...e,name:e.source,type:'income'}));
+      const exp=this.expenseEntries.filter(e=>e.month===this.currentMonth&&e.year===this.currentYear).map(e=>({...e,type:'expense'}));
+      return [...inc,...exp].sort((a,b)=>new Date(b.date)-new Date(a.date));
+    },
+
+    billTemplates:[
+      {name:'Rent',period:'1st',category:'Housing',autopay:false,amount:400},
+      {name:'Electricity',period:'1st',category:'Utilities',autopay:false},
+      {name:'Phone Bill',period:'1st',category:'Utilities',autopay:false},
+      {name:'Insurance',period:'1st',category:'Insurance',autopay:false,amount:275},
+      {name:'Car Payment',period:'1st',category:'Transportation',autopay:false,amount:524},
+      {name:'Rent',period:'15th',category:'Housing',autopay:false,amount:900},
+      {name:"Sofia's Credit Card",period:'15th',category:'Debt',autopay:false,amount:100},
+      {name:'Best Buy Credit Card',period:'15th',category:'Debt',autopay:false,amount:60},
+      {name:'GoHighLevel',period:'sub',category:'Subscriptions',autopay:true,amount:100},
+      {name:'Claude Cowork',period:'sub',category:'Subscriptions',autopay:true,amount:103},
+      {name:'YouTube Red',period:'sub',category:'Subscriptions',autopay:true,amount:8},
+      {name:'Apple TV',period:'sub',category:'Subscriptions',autopay:true,amount:12},
+      {name:'Google Photos',period:'sub',category:'Subscriptions',autopay:true,amount:3},
+      {name:'iCloud',period:'sub',category:'Subscriptions',autopay:true,amount:3},
+    ],
+
+    init(){
+      this.load();
+      this.migrateAndSeed();
+      this.$nextTick(()=>this.buildCharts());
+    },
+
+    load(){
+      ['bills','incomeEntries','expenseEntries','budgets','assets','liabilities','goals','seededMonths'].forEach(k=>{
+        const v=localStorage.getItem('fos_'+k);
+        if(v){try{this[k]=JSON.parse(v)}catch(e){console.error('Load error',k,e)}}
+      });
+    },
+
+    migrateAndSeed(){
+      const SEED_VERSION='v9';
+      const prev=localStorage.getItem('fos_seed_version');
+      if(prev!==SEED_VERSION){
+        if(!prev){
+          // Brand new install — clean slate
+          this.bills=[];
+          this.seededMonths={};
+        } else {
+          // v3 → v4: remove the standalone "Claude" subscription (kept "Claude Cowork")
+          this.bills=this.bills.filter(b=>!(b.period==='sub'&&b.name==='Claude'));
+          // Backfill any missing template (subs and bills) into seeded months
+          Object.keys(this.seededMonths).forEach(key=>{
+            const [y,m]=key.split('-').map(Number);
+            this.billTemplates.forEach((t,i)=>{
+              const exists=this.bills.some(b=>b.month===m&&b.year===y&&b.name===t.name&&b.period===t.period);
+              if(!exists){
+                this.bills.push({id:Date.now()+Math.floor(Math.random()*100000)+i,...t,amount:t.amount||0,paid:false,month:m,year:y});
+              }
+            });
+          });
+          // Lock subscription amounts to template values
+          const subs=this.billTemplates.filter(t=>t.period==='sub');
+          this.bills.forEach(b=>{
+            if(b.period==='sub'){
+              const tpl=subs.find(t=>t.name===b.name);
+              if(tpl&&typeof tpl.amount==='number')b.amount=tpl.amount;
+            }
+          });
+          // v8 → v9: lock fixed amounts for Rent (1st=$400 save, 15th=$900 pay), Insurance, Car Payment, Sofia's Credit Card, Best Buy Credit Card
+          const fixedAmounts=[
+            {name:'Rent',period:'1st',amount:400},
+            {name:'Rent',period:'15th',amount:900},
+            {name:'Insurance',period:'1st',amount:275},
+            {name:'Car Payment',period:'1st',amount:524},
+            {name:"Sofia's Credit Card",period:'15th',amount:100},
+            {name:'Best Buy Credit Card',period:'15th',amount:60},
+          ];
+          this.bills.forEach(b=>{
+            const tpl=fixedAmounts.find(t=>t.name===b.name&&t.period===b.period);
+            if(tpl)b.amount=tpl.amount;
+          });
+        }
+        localStorage.setItem('fos_seed_version',SEED_VERSION);
+        this.save();
+      }
+      this.seedMonth(this.currentMonth,this.currentYear);
+    },
+
+    seedMonth(m,y){
+      const key=y+'-'+m;
+      if(this.seededMonths[key])return;
+      this.billTemplates.forEach((t,i)=>{
+        this.bills.push({id:Date.now()+i+Math.floor(Math.random()*1000),...t,amount:t.amount||0,paid:false,month:m,year:y});
+      });
+      this.seededMonths[key]=true;
+      this.save();
+    },
+
+    save(){
+      try{
+        ['bills','incomeEntries','expenseEntries','budgets','assets','liabilities','goals','seededMonths'].forEach(k=>{
+          localStorage.setItem('fos_'+k,JSON.stringify(this[k]));
+        });
+      }catch(e){console.error('Save error',e);this.toast('⚠️ Save failed — storage may be full');}
+    },
+
+    toast(msg){this.toastMsg=msg;setTimeout(()=>this.toastMsg='',2200);},
+
+    switchTab(t){this.currentTab=t;if(t==='overview')this.$nextTick(()=>this.buildCharts());},
+    prevMonth(){
+      if(this.currentMonth===0){this.currentMonth=11;this.currentYear--;}else this.currentMonth--;
+      this.seedMonth(this.currentMonth,this.currentYear);
+      this.$nextTick(()=>this.refreshCharts());
+    },
+    nextMonth(){
+      if(this.currentMonth===11){this.currentMonth=0;this.currentYear++;}else this.currentMonth++;
+      this.seedMonth(this.currentMonth,this.currentYear);
+      this.$nextTick(()=>this.refreshCharts());
+    },
+
+    openAddModal(){
+      const m={overview:'income',bills:'bill',budget:'budget',income:'income',expenses:'expense',networth:'asset',goals:'goal'};
+      const t=m[this.currentTab]||'income';
+      if(t==='bill')this.openBillModal('1st');
+      else if(t==='asset')this.openAssetModal('asset');
+      else{this.form={name:'',amount:'',date:new Date().toISOString().split('T')[0],category:'Other',source:'',budget:'',emoji:'📦',description:'',target:'',current:'0'};this.modal=t;}
+    },
+
+    openBillModal(period){this.editingId=null;this.form={name:'',amount:'',period,category:'Other',autopay:false};this.modal='bill';},
+    editBill(bill){this.editingId=bill.id;this.form={...bill};this.modal='bill';},
+    saveBill(){
+      if(!this.form.name)return;
+      if(this.editingId){const i=this.bills.findIndex(b=>b.id===this.editingId);if(i!==-1)this.bills[i]={...this.bills[i],...this.form,amount:Number(this.form.amount)||0};}
+      else{this.bills.push({id:Date.now(),...this.form,amount:Number(this.form.amount)||0,paid:false,month:this.currentMonth,year:this.currentYear});}
+      this.save();this.modal='';this.toast('✓ Bill saved');
+    },
+    updateBillAmount(id,val){
+      const b=this.bills.find(b=>b.id===id);
+      if(b){b.amount=Number(val)||0;this.save();}
+    },
+    deleteBill(id){if(!confirm('Delete this bill?'))return;this.bills=this.bills.filter(b=>b.id!==id);this.save();this.toast('Bill deleted');},
+    togglePaid(id){const b=this.bills.find(b=>b.id===id);if(b)b.paid=!b.paid;this.save();},
+    markAllPaid(p){this.monthBills.filter(b=>b.period===p).forEach(b=>{const i=this.bills.findIndex(x=>x.id===b.id);if(i!==-1)this.bills[i].paid=true;});this.save();this.toast('✓ All marked paid');},
+
+    openIncomeModal(){this.form={source:'',amount:'',date:new Date().toISOString().split('T')[0],category:'YouTube'};this.modal='income';},
+    saveIncome(){
+      if(!this.form.source||!this.form.amount)return;
+      const d=new Date(this.form.date+'T12:00:00');
+      this.incomeEntries.push({id:Date.now(),...this.form,amount:Number(this.form.amount),month:d.getMonth(),year:d.getFullYear()});
+      this.save();this.modal='';this.toast('✓ Income added');this.$nextTick(()=>this.refreshCharts());
+    },
+
+    openExpenseModal(){this.form={name:'',amount:'',date:new Date().toISOString().split('T')[0],category:'Food'};this.modal='expense';},
+    saveExpense(){
+      if(!this.form.name||!this.form.amount)return;
+      const d=new Date(this.form.date+'T12:00:00');
+      this.expenseEntries.push({id:Date.now(),...this.form,amount:Number(this.form.amount),month:d.getMonth(),year:d.getFullYear()});
+      this.save();this.modal='';this.toast('✓ Expense added');this.$nextTick(()=>this.refreshCharts());
+    },
+
+    openBudgetModal(){this.form={name:'',budget:'',emoji:'📦'};this.modal='budget';},
+    saveBudget(){
+      if(!this.form.name||!this.form.budget)return;
+      const cols=['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16'];
+      this.budgets.push({id:Date.now(),...this.form,budget:Number(this.form.budget),color:cols[this.budgets.length%cols.length]});
+      this.save();this.modal='';this.toast('✓ Category added');
+    },
+    catSpend(name){return this.expenseEntries.filter(e=>e.month===this.currentMonth&&e.year===this.currentYear&&e.category===name).reduce((s,e)=>s+e.amount,0);},
+
+    openAssetModal(mode){this.form={name:'',value:'',type:mode==='asset'?'Cash / Bank Account':'Credit Card',mode};this.modal='asset';},
+    saveAsset(){
+      if(!this.form.name||!this.form.value)return;
+      const item={id:Date.now(),name:this.form.name,value:Number(this.form.value),type:this.form.type};
+      if(this.form.mode==='asset')this.assets.push(item);else this.liabilities.push(item);
+      this.save();this.modal='';this.toast('✓ Saved');
+    },
+
+    openGoalModal(){this.form={name:'',description:'',target:'',current:'0'};this.modal='goal';},
+    saveGoal(){
+      if(!this.form.name||!this.form.target)return;
+      const cols=['#3B82F6','#10B981','#F59E0B','#8B5CF6','#EC4899','#EF4444'];
+      this.goals.push({id:Date.now(),...this.form,target:Number(this.form.target),current:Number(this.form.current),color:cols[this.goals.length%cols.length]});
+      this.save();this.modal='';this.toast('✓ Goal added');
+    },
+
+    buildCharts(){
+      try{this.buildFlow();}catch(e){console.error('Money Flow chart error:',e);}
+      try{this.buildBillsPie();}catch(e){console.error('Bills Breakdown chart error:',e);}
+      try{this.buildHealth();}catch(e){console.error('Financial Health chart error:',e);}
+    },
+    refreshCharts(){if(this.currentTab==='overview')this.$nextTick(()=>this.buildCharts());},
+
+    getMonthlyData(){
+      const labels=[],inc=[],exp=[];
+      for(let i=5;i>=0;i--){
+        let m=this.currentMonth-i,y=this.currentYear;
+        if(m<0){m+=12;y--;}
+        labels.push(new Date(y,m).toLocaleString('default',{month:'short'}));
+        inc.push(this.incomeEntries.filter(e=>e.month===m&&e.year===y).reduce((s,e)=>s+e.amount,0));
+        const manual=this.expenseEntries.filter(e=>e.month===m&&e.year===y).reduce((s,e)=>s+e.amount,0);
+        const billsForMonth=this.bills.filter(b=>b.month===m&&b.year===y).reduce((s,b)=>s+b.amount,0);
+        exp.push(manual+billsForMonth);
+      }
+      return{labels,inc,exp};
+    },
+
+    makeGrad(ctx,c1,c2,h){
+      const g=ctx.createLinearGradient(0,0,0,h||220);
+      g.addColorStop(0,c1);g.addColorStop(1,c2);
+      return g;
+    },
+
+    centerTextPlugin(label,value,valueColor){
+      return {
+        id:'centerText_'+label,
+        afterDraw(chart){
+          const {ctx,chartArea}=chart;
+          const cx=(chartArea.left+chartArea.right)/2;
+          const cy=(chartArea.top+chartArea.bottom)/2;
+          ctx.save();
+          ctx.textAlign='center';
+          ctx.fillStyle='#94A3B8';
+          ctx.font='600 10px Inter';
+          ctx.fillText(label,cx,cy-10);
+          ctx.fillStyle=valueColor||'#0F172A';
+          ctx.font='800 22px Inter';
+          ctx.fillText(value,cx,cy+14);
+          ctx.restore();
+        }
+      };
+    },
+
+    chartTooltip:{enabled:true,backgroundColor:'rgba(15,23,42,0.95)',padding:12,cornerRadius:10,displayColors:true,boxPadding:6,titleFont:{size:12,weight:'700',family:'Inter'},bodyFont:{size:12,family:'Inter'},titleColor:'#F8FAFC',bodyColor:'#CBD5E1'},
+
+    buildFlow(){
+      const c=document.getElementById('chartFlow');if(!c)return;
+      if(this.charts.flow)this.charts.flow.destroy();
+      const ctx=c.getContext('2d');
+      const bills=this.period1Total+this.period2Total;
+      const subs=this.subTotal;
+      const expenses=this.totalExpenses;
+      const saved=Math.max(this.totalIncome-bills-subs-expenses,0);
+      const labels=['Bills','Subscriptions','Expenses','Saved'];
+      const data=[bills,subs,expenses,saved];
+      const total=data.reduce((s,v)=>s+v,0);
+      const grads=[
+        this.makeGrad(ctx,'#60A5FA','#2563EB'),
+        this.makeGrad(ctx,'#34D399','#059669'),
+        this.makeGrad(ctx,'#F87171','#DC2626'),
+        this.makeGrad(ctx,'#86EFAC','#16A34A')
+      ];
+      const flatCols=['#3B82F6','#10B981','#EF4444','#22C55E'];
+      const has=data.some(v=>v>0);
+      this.charts.flow=new Chart(c,{
+        type:'doughnut',
+        data:{labels,datasets:[{
+          data:has?data:[1],
+          backgroundColor:has?grads:['#F1F5F9'],
+          borderWidth:0,
+          borderRadius:has?8:0,
+          spacing:has?3:0,
+          hoverOffset:10
+        }]},
+        options:{
+          responsive:true,maintainAspectRatio:false,cutout:'70%',
+          animation:{animateRotate:true,animateScale:true,duration:900,easing:'easeOutQuart'},
+          plugins:{legend:{display:false},tooltip:{...this.chartTooltip,enabled:has,callbacks:{label:ctx=>' '+ctx.label+': $'+ctx.parsed.toLocaleString()+' ('+Math.round((ctx.parsed/total)*100)+'%)'}}}
+        },
+        plugins:[this.centerTextPlugin('TOTAL FLOW',has?'$'+total.toLocaleString():'$0','#0F172A')]
+      });
+      const leg=document.getElementById('flowLegend');
+      if(leg){
+        if(!has){leg.innerHTML='<div style="font-size:11px;color:#94A3B8;text-align:center;padding:8px 0">Add income & bill amounts to see flow</div>';}
+        else leg.innerHTML=labels.map((l,i)=>data[i]>0?`<div style="display:flex;align-items:center;justify-content:space-between;font-size:11px"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:${flatCols[i]};box-shadow:0 0 0 2px ${flatCols[i]}33"></div><span style="color:#64748B">${l}</span></div><span style="font-weight:700;color:#1E293B;font-variant-numeric:tabular-nums">$${data[i].toLocaleString()} · ${Math.round((data[i]/total)*100)}%</span></div>`:'').join('');
+      }
+    },
+
+    buildBillsPie(){
+      const c=document.getElementById('chartBills');if(!c)return;
+      if(this.charts.billspie)this.charts.billspie.destroy();
+      const ctx=c.getContext('2d');
+      const labels=['1st Period','15th Period','Subscriptions'];
+      const data=[this.period1Total,this.period2Total,this.subTotal];
+      const total=data.reduce((s,v)=>s+v,0);
+      const grads=[
+        this.makeGrad(ctx,'#60A5FA','#1D4ED8'),
+        this.makeGrad(ctx,'#A78BFA','#6D28D9'),
+        this.makeGrad(ctx,'#34D399','#047857')
+      ];
+      const flatCols=['#3B82F6','#8B5CF6','#10B981'];
+      const has=data.some(v=>v>0);
+      this.charts.billspie=new Chart(c,{
+        type:'doughnut',
+        data:{labels,datasets:[{
+          data:has?data:[1],
+          backgroundColor:has?grads:['#F1F5F9'],
+          borderWidth:0,
+          borderRadius:has?8:0,
+          spacing:has?3:0,
+          hoverOffset:10
+        }]},
+        options:{
+          responsive:true,maintainAspectRatio:false,cutout:'70%',
+          animation:{animateRotate:true,animateScale:true,duration:900,easing:'easeOutQuart'},
+          plugins:{legend:{display:false},tooltip:{...this.chartTooltip,enabled:has,callbacks:{label:ctx=>' '+ctx.label+': $'+ctx.parsed.toLocaleString()+' ('+(total>0?Math.round((ctx.parsed/total)*100):0)+'%)'}}}
+        },
+        plugins:[this.centerTextPlugin('FIXED COSTS',has?'$'+total.toLocaleString():'$0','#0F172A')]
+      });
+      const leg=document.getElementById('billsLegend');
+      if(leg){
+        if(!has){leg.innerHTML='<div style="font-size:11px;color:#94A3B8;text-align:center;padding:8px 0">Fill in bill amounts to see breakdown</div>';}
+        else leg.innerHTML=labels.map((l,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;font-size:11px"><div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:${flatCols[i]};box-shadow:0 0 0 2px ${flatCols[i]}33"></div><span style="color:#64748B">${l}</span></div><span style="font-weight:700;color:#1E293B;font-variant-numeric:tabular-nums">$${data[i].toLocaleString()} · ${total>0?Math.round((data[i]/total)*100):0}%</span></div>`).join('');
+      }
+    },
+
+    buildHealth(){
+      const c=document.getElementById('chartHealth');if(!c)return;
+      if(this.charts.health)this.charts.health.destroy();
+      const ctx=c.getContext('2d');
+      const rate=Math.max(0,Math.min(this.savingsRate,100));
+      const empty=100-rate;
+      const goodColor=this.savingsRate>=20?'#10B981':this.savingsRate>=10?'#F59E0B':'#EF4444';
+      const lightColor=this.savingsRate>=20?'#A7F3D0':this.savingsRate>=10?'#FDE68A':'#FECACA';
+      const grad=ctx.createLinearGradient(0,0,260,0);
+      grad.addColorStop(0,lightColor);grad.addColorStop(1,goodColor);
+      const has=this.totalIncome>0||this.allSpend>0;
+      const rateText=has?this.savingsRate.toFixed(0)+'%':'—';
+      this.charts.health=new Chart(c,{
+        type:'doughnut',
+        data:{labels:['Saved %','Spent %'],datasets:[{
+          data:has?[rate,empty]:[1],
+          backgroundColor:has?[grad,'#F1F5F9']:['#F1F5F9'],
+          borderWidth:0,
+          borderRadius:has?[8,0]:0,
+          spacing:0,
+          hoverOffset:0
+        }]},
+        options:{
+          responsive:true,maintainAspectRatio:false,
+          cutout:'72%',rotation:-90,circumference:360,
+          animation:{animateRotate:true,duration:1100,easing:'easeOutCubic'},
+          plugins:{legend:{display:false},tooltip:{enabled:false}}
+        },
+        plugins:[this.centerTextPlugin('SAVINGS RATE',rateText,goodColor)]
+      });
+    },
+
+    fmt(n){return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:0,maximumFractionDigits:0}).format(Number(n)||0);},
+    catColor(cat){return({'Housing':'#3B82F6','Food':'#10B981','Transportation':'#F59E0B','Utilities':'#06B6D4','Subscriptions':'#8B5CF6','Health':'#EC4899','Business':'#F97316','Entertainment':'#84CC16','Shopping':'#EF4444','YouTube':'#FF0000','Sponsorship':'#10B981','Course':'#8B5CF6','Consulting':'#3B82F6','Freelance':'#F59E0B','Investment':'#10B981','Other':'#6B7280','Insurance':'#06B6D4','Debt':'#EF4444'})[cat]||'#6B7280';},
+    catEmoji(cat){return({'Housing':'🏠','Food':'🍔','Transportation':'🚗','Utilities':'⚡','Subscriptions':'📱','Health':'💊','Business':'💼','Entertainment':'🎬','Shopping':'🛍','YouTube':'📺','Sponsorship':'🤝','Course':'🎓','Consulting':'💼','Freelance':'💻','Investment':'📈','Other':'📦','Insurance':'🛡','Debt':'💳'})[cat]||'📦';},
+
+    exportCSV(){
+      let csv='Finance OS Export — '+this.monthName+' '+this.currentYear+'\n\nBILLS\nName,Amount,Period,Category,AutoPay,Paid\n';
+      this.bills.forEach(b=>csv+=`${b.name},${b.amount},${b.period},${b.category},${b.autopay},${b.paid}\n`);
+      csv+='\nINCOME\nSource,Amount,Date,Category,Month,Year\n';
+      this.incomeEntries.forEach(e=>csv+=`${e.source},${e.amount},${e.date},${e.category},${e.month+1},${e.year}\n`);
+      csv+='\nEXPENSES\nName,Amount,Date,Category,Month,Year\n';
+      this.expenseEntries.forEach(e=>csv+=`${e.name},${e.amount},${e.date},${e.category},${e.month+1},${e.year}\n`);
+      csv+='\nASSETS\nName,Value,Type\n';this.assets.forEach(a=>csv+=`${a.name},${a.value},${a.type}\n`);
+      csv+='\nLIABILITIES\nName,Value,Type\n';this.liabilities.forEach(l=>csv+=`${l.name},${l.value},${l.type}\n`);
+      const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='finance_'+this.monthName+'_'+this.currentYear+'.csv';a.click();
+      this.toast('✓ CSV exported');
+    },
+
+    exportJSON(){
+      const data={bills:this.bills,incomeEntries:this.incomeEntries,expenseEntries:this.expenseEntries,budgets:this.budgets,assets:this.assets,liabilities:this.liabilities,goals:this.goals,seededMonths:this.seededMonths,exportedAt:new Date().toISOString()};
+      const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='finance_backup_'+new Date().toISOString().split('T')[0]+'.json';a.click();
+      this.toast('✓ Backup downloaded');
+    },
+
+    importJSON(ev){
+      const file=ev.target.files[0];if(!file)return;
+      const r=new FileReader();
+      r.onload=e=>{
+        try{
+          const d=JSON.parse(e.target.result);
+          if(!confirm('Replace all current data with this backup?'))return;
+          ['bills','incomeEntries','expenseEntries','budgets','assets','liabilities','goals','seededMonths'].forEach(k=>{if(d[k])this[k]=d[k];});
+          this.save();this.toast('✓ Backup restored');this.refreshCharts();
+        }catch(err){alert('Invalid backup file');}
+      };
+      r.readAsText(file);
+      ev.target.value='';
+    }
+  };
+}
+</script>
+</body>
+</html>

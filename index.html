@@ -19,18 +19,27 @@
   .toast{animation:slideUp .3s ease,fadeOut .4s ease 1.6s forwards}
   @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
   @keyframes fadeOut{to{opacity:0;transform:translateY(-10px)}}
-  .editable-amt{background:transparent;border:none;outline:none;text-align:right;font-weight:700;width:90px;padding:4px 6px;border-radius:6px;transition:background .15s;font-variant-numeric:tabular-nums}
+  .editable-amt{background:transparent;border:none;outline:none;text-align:right;font-weight:700;width:80px;padding:4px 6px;border-radius:6px;transition:background .15s;font-variant-numeric:tabular-nums}
   .editable-amt:hover{background:rgba(59,130,246,0.08)}
   .editable-amt:focus{background:rgba(59,130,246,0.12)}
+  .sidebar-slide{transition:transform .25s cubic-bezier(.4,0,.2,1)}
 </style>
 </head>
 <body class="bg-slate-100 min-h-screen" x-data="app()" x-init="init()" x-cloak>
 
+<!-- Mobile sidebar overlay -->
+<div x-show="drawerOpen" @click="drawerOpen=false"
+  class="fixed inset-0 bg-black/60 z-30 md:hidden"
+  x-transition:enter="transition-opacity duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+  x-transition:leave="transition-opacity duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+
 <div class="flex min-h-screen">
 
   <!-- SIDEBAR -->
-  <aside class="w-60 bg-slate-900 flex flex-col fixed top-0 left-0 h-screen z-40 shadow-2xl">
-    <div class="px-5 py-5 border-b border-slate-700/50">
+  <aside class="w-60 bg-slate-900 flex flex-col fixed top-0 left-0 h-screen z-40 shadow-2xl sidebar-slide"
+    :class="drawerOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
+
+    <div class="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg">$</div>
         <div>
@@ -38,6 +47,9 @@
           <div class="text-slate-400 text-xs mt-0.5">Javier Martinez</div>
         </div>
       </div>
+      <button @click="drawerOpen=false" class="md:hidden text-slate-400 hover:text-white p-1 rounded-lg">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
     </div>
 
     <div class="px-4 py-3 border-b border-slate-700/50">
@@ -54,7 +66,7 @@
 
     <nav class="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
       <template x-for="item in navItems" :key="item.id">
-        <button @click="switchTab(item.id)" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all"
+        <button @click="switchTab(item.id);drawerOpen=false" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all"
           :class="currentTab===item.id ? 'bg-blue-500/15 text-blue-400' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
           <span class="text-base leading-none" x-text="item.icon"></span>
           <span class="text-sm font-medium flex-1" x-text="item.label"></span>
@@ -83,78 +95,85 @@
   </aside>
 
   <!-- MAIN -->
-  <main class="ml-60 flex-1">
+  <main class="flex-1 md:ml-60 min-h-screen flex flex-col">
 
-    <header class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
-      <div>
-        <h1 class="text-lg font-bold text-slate-900" x-text="navItems.find(n=>n.id===currentTab)?.label"></h1>
-        <p class="text-xs text-slate-400 mt-0.5" x-text="monthName + ' ' + currentYear"></p>
-      </div>
+    <!-- HEADER -->
+    <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between sticky top-0 z-20">
       <div class="flex items-center gap-3">
-        <div class="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+        <button @click="drawerOpen=true" class="md:hidden p-1.5 -ml-1 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div>
+          <h1 class="text-base md:text-lg font-bold text-slate-900 leading-tight" x-text="navItems.find(n=>n.id===currentTab)?.label"></h1>
+          <p class="text-xs text-slate-400" x-text="monthName + ' ' + currentYear"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 md:gap-3">
+        <div class="hidden sm:flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
           <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
           Auto-saved
         </div>
-        <button @click="openAddModal()" class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-          Add Entry
+        <button @click="openAddModal()" class="flex items-center gap-1.5 px-3 md:px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs md:text-sm font-semibold transition-colors shadow-sm">
+          <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          <span class="hidden sm:inline">Add Entry</span>
+          <span class="sm:hidden">Add</span>
         </button>
       </div>
     </header>
 
-    <div class="p-8">
+    <div class="p-4 md:p-8 pb-24 md:pb-8 flex-1">
 
       <!-- ============ OVERVIEW ============ -->
       <div x-show="currentTab==='overview'">
 
         <!-- KPI ROW -->
-        <div class="grid grid-cols-5 gap-4 mb-6">
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="flex items-center justify-between mb-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-5 md:mb-6">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-2 md:mb-3">
               <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Income</span>
-              <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center text-sm">💰</div>
+              <div class="w-6 h-6 md:w-7 md:h-7 bg-emerald-50 rounded-lg flex items-center justify-center text-sm">💰</div>
             </div>
-            <div class="text-2xl font-black text-emerald-600 num" x-text="fmt(totalIncome)"></div>
+            <div class="text-xl md:text-2xl font-black text-emerald-600 num" x-text="fmt(totalIncome)"></div>
             <div class="text-[11px] text-slate-400 mt-0.5">This month</div>
           </div>
 
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="flex items-center justify-between mb-3">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-2 md:mb-3">
               <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Expenses</span>
-              <div class="w-7 h-7 bg-red-50 rounded-lg flex items-center justify-center text-sm">💸</div>
+              <div class="w-6 h-6 md:w-7 md:h-7 bg-red-50 rounded-lg flex items-center justify-center text-sm">💸</div>
             </div>
-            <div class="text-2xl font-black text-red-500 num" x-text="fmt(allSpend)"></div>
-            <div class="text-[11px] text-slate-400 mt-0.5 num" x-text="'Bills '+fmt(monthBillsTotal)+' + '+fmt(totalExpenses)"></div>
+            <div class="text-xl md:text-2xl font-black text-red-500 num" x-text="fmt(allSpend)"></div>
+            <div class="text-[11px] text-slate-400 mt-0.5 num hidden sm:block" x-text="'Bills '+fmt(monthBillsTotal)+' + '+fmt(totalExpenses)"></div>
           </div>
 
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="flex items-center justify-between mb-3">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-2 md:mb-3">
               <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cash Flow</span>
-              <div class="w-7 h-7 rounded-lg flex items-center justify-center text-sm" :class="cashFlow>=0?'bg-emerald-50':'bg-red-50'">
+              <div class="w-6 h-6 md:w-7 md:h-7 rounded-lg flex items-center justify-center text-sm" :class="cashFlow>=0?'bg-emerald-50':'bg-red-50'">
                 <span x-text="cashFlow>=0?'📈':'📉'"></span>
               </div>
             </div>
-            <div class="text-2xl font-black num" :class="cashFlow>=0?'text-emerald-600':'text-red-500'" x-text="fmt(cashFlow)"></div>
+            <div class="text-xl md:text-2xl font-black num" :class="cashFlow>=0?'text-emerald-600':'text-red-500'" x-text="fmt(cashFlow)"></div>
             <div class="text-[11px] text-slate-400 mt-0.5">Income − Expenses</div>
           </div>
 
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Savings Rate</span>
-              <div class="w-7 h-7 bg-purple-50 rounded-lg flex items-center justify-center text-sm">🎯</div>
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
+            <div class="flex items-center justify-between mb-2 md:mb-3">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Savings</span>
+              <div class="w-6 h-6 md:w-7 md:h-7 bg-purple-50 rounded-lg flex items-center justify-center text-sm">🎯</div>
             </div>
-            <div class="text-2xl font-black text-slate-900 num" x-text="savingsRate.toFixed(1)+'%'"></div>
+            <div class="text-xl md:text-2xl font-black text-slate-900 num" x-text="savingsRate.toFixed(1)+'%'"></div>
             <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2">
               <div class="h-1.5 rounded-full transition-all" :class="savingsRate>=20?'bg-emerald-500':savingsRate>=10?'bg-amber-500':'bg-red-500'" :style="'width:'+Math.min(Math.max(savingsRate,0),100)+'%'"></div>
             </div>
           </div>
 
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="flex items-center justify-between mb-3">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 col-span-2 sm:col-span-1">
+            <div class="flex items-center justify-between mb-2 md:mb-3">
               <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bills Paid</span>
-              <div class="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center text-sm">📅</div>
+              <div class="w-6 h-6 md:w-7 md:h-7 bg-amber-50 rounded-lg flex items-center justify-center text-sm">📅</div>
             </div>
-            <div class="text-2xl font-black text-slate-900 num"><span x-text="monthBills.filter(b=>b.paid).length"></span><span class="text-slate-300 text-lg">/<span x-text="monthBills.length"></span></span></div>
+            <div class="text-xl md:text-2xl font-black text-slate-900 num"><span x-text="monthBills.filter(b=>b.paid).length"></span><span class="text-slate-300 text-lg">/<span x-text="monthBills.length"></span></span></div>
             <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2">
               <div class="h-1.5 rounded-full bg-emerald-500 transition-all" :style="'width:'+(monthBills.length>0?(monthBills.filter(b=>b.paid).length/monthBills.length)*100:0)+'%'"></div>
             </div>
@@ -162,26 +181,22 @@
         </div>
 
         <!-- THREE PIE CHARTS -->
-        <div class="grid grid-cols-3 gap-5 mb-6">
-
-          <!-- Money Flow -->
-          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-6">
+          <div class="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-slate-100 flex flex-col">
             <div class="font-bold text-slate-900">Money Flow</div>
             <div class="text-xs text-slate-400 mt-0.5 mb-3">Income, expenses & bills ratio</div>
             <div class="relative flex items-center justify-center" style="height:200px"><canvas id="chartFlow"></canvas></div>
             <div class="space-y-1.5 mt-4" id="flowLegend"></div>
           </div>
 
-          <!-- Bills Pie -->
-          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
+          <div class="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-slate-100 flex flex-col">
             <div class="font-bold text-slate-900">Bills Breakdown</div>
             <div class="text-xs text-slate-400 mt-0.5 mb-3">By pay period & subs</div>
             <div class="relative flex items-center justify-center" style="height:200px"><canvas id="chartBills"></canvas></div>
             <div class="space-y-1.5 mt-4" id="billsLegend"></div>
           </div>
 
-          <!-- Financial Health -->
-          <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
+          <div class="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-slate-100 flex flex-col">
             <div class="flex items-start justify-between mb-3">
               <div>
                 <div class="font-bold text-slate-900">Financial Health</div>
@@ -211,83 +226,73 @@
       <!-- ============ BILLS ============ -->
       <div x-show="currentTab==='bills'">
 
-        <div class="grid grid-cols-5 gap-4 mb-7">
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">1st Period</div>
-            <div class="text-2xl font-black text-slate-900 num" x-text="fmt(period1Total)"></div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">1st Period</div>
+            <div class="text-xl md:text-2xl font-black text-slate-900 num" x-text="fmt(period1Total)"></div>
             <div class="text-xs text-slate-400 mt-1" x-text="monthBills.filter(b=>b.period==='1st'&&b.paid).length+'/'+monthBills.filter(b=>b.period==='1st').length+' paid'"></div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">15th Period</div>
-            <div class="text-2xl font-black text-slate-900 num" x-text="fmt(period2Total)"></div>
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">15th Period</div>
+            <div class="text-xl md:text-2xl font-black text-slate-900 num" x-text="fmt(period2Total)"></div>
             <div class="text-xs text-slate-400 mt-1" x-text="monthBills.filter(b=>b.period==='15th'&&b.paid).length+'/'+monthBills.filter(b=>b.period==='15th').length+' paid'"></div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Subscriptions</div>
-            <div class="text-2xl font-black text-emerald-600 num" x-text="fmt(subTotal)"></div>
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Subscriptions</div>
+            <div class="text-xl md:text-2xl font-black text-emerald-600 num" x-text="fmt(subTotal)"></div>
             <div class="text-xs text-slate-400 mt-1" x-text="monthBills.filter(b=>b.period==='sub').length+' active'"></div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Monthly Total</div>
-            <div class="text-2xl font-black text-slate-900 num" x-text="fmt(period1Total+period2Total+subTotal)"></div>
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Monthly Total</div>
+            <div class="text-xl md:text-2xl font-black text-slate-900 num" x-text="fmt(period1Total+period2Total+subTotal)"></div>
             <div class="text-xs text-emerald-500 mt-1" x-text="monthBills.filter(b=>b.paid).length+' paid ✓'"></div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Still Owed</div>
-            <div class="text-2xl font-black text-amber-500 num" x-text="fmt(monthBills.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0))"></div>
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 col-span-2 sm:col-span-1">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Still Owed</div>
+            <div class="text-xl md:text-2xl font-black text-amber-500 num" x-text="fmt(monthBills.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0))"></div>
             <div class="text-xs text-slate-400 mt-1" x-text="monthBills.filter(b=>!b.paid).length+' outstanding'"></div>
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
 
           <!-- Period 1 -->
           <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="px-4 md:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <div class="font-bold text-slate-900 flex items-center gap-2">
-                  Pay Period 1
-                  <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">Around the 1st</span>
-                </div>
+                <div class="font-bold text-slate-900 flex items-center gap-2 flex-wrap">Pay Period 1 <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">Around the 1st</span></div>
                 <div class="text-xs text-slate-400 mt-0.5">Bills due at start of month</div>
               </div>
-              <button @click="openBillModal('1st')" class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
+              <button @click="openBillModal('1st')" class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors ml-2 flex-shrink-0">+ Add</button>
             </div>
-
             <div>
               <template x-if="monthBills.filter(b=>b.period==='1st').length===0">
                 <div class="px-6 py-10 text-center text-slate-400 text-sm">No bills yet — add your first one</div>
               </template>
               <template x-for="bill in monthBills.filter(b=>b.period==='1st')" :key="bill.id">
-                <div class="px-5 py-3.5 flex items-center gap-3 border-b border-slate-50 last:border-0" :class="bill.paid?'opacity-50':''">
-                  <button @click="togglePaid(bill.id)" class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all"
-                    :class="bill.paid?'bg-emerald-500 border-emerald-500 text-white':'border-slate-300 hover:border-blue-400'">
+                <div class="px-4 md:px-5 py-3.5 flex items-center gap-3 border-b border-slate-50 last:border-0" :class="bill.paid?'opacity-50':''">
+                  <button @click="togglePaid(bill.id)" class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all" :class="bill.paid?'bg-emerald-500 border-emerald-500 text-white':'border-slate-300 hover:border-blue-400'">
                     <svg x-show="bill.paid" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                   </button>
                   <div class="flex-1 min-w-0">
-                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-2" :class="bill.paid?'line-through':''">
+                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-1.5 flex-wrap" :class="bill.paid?'line-through':''">
                       <span x-text="bill.name"></span>
-                      <span x-show="bill.autopay" class="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium normal-case" style="text-decoration:none">Auto</span>
+                      <span x-show="bill.autopay" class="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium" style="text-decoration:none">Auto</span>
                     </div>
                     <div class="text-xs text-slate-400" x-text="bill.category"></div>
                   </div>
-                  <div class="flex items-center text-slate-900 font-bold text-sm num">
+                  <div class="flex items-center text-slate-900 font-bold text-sm num flex-shrink-0">
                     <span class="text-slate-400 mr-0.5">$</span>
                     <input type="number" :value="bill.amount" @change="updateBillAmount(bill.id,$event.target.value)" class="editable-amt text-slate-900" placeholder="0"/>
                   </div>
-                  <div class="flex gap-1">
-                    <button @click="editBill(bill)" class="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                    </button>
-                    <button @click="deleteBill(bill.id)" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
+                  <div class="flex gap-1 flex-shrink-0">
+                    <button @click="editBill(bill)" class="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                    <button @click="deleteBill(bill.id)" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                   </div>
                 </div>
               </template>
             </div>
-
-            <div class="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
+            <div class="px-4 md:px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
               <button @click="markAllPaid('1st')" class="text-xs text-slate-500 hover:text-emerald-600 font-semibold transition-colors">✓ Mark all paid</button>
               <div class="text-sm font-black text-slate-900 num" x-text="fmt(period1Total)"></div>
             </div>
@@ -295,51 +300,41 @@
 
           <!-- Period 2 -->
           <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="px-4 md:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <div class="font-bold text-slate-900 flex items-center gap-2">
-                  Pay Period 2
-                  <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">Around the 15th</span>
-                </div>
+                <div class="font-bold text-slate-900 flex items-center gap-2 flex-wrap">Pay Period 2 <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">Around the 15th</span></div>
                 <div class="text-xs text-slate-400 mt-0.5">Bills due mid-month</div>
               </div>
-              <button @click="openBillModal('15th')" class="text-xs bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
+              <button @click="openBillModal('15th')" class="text-xs bg-purple-500 hover:bg-purple-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors ml-2 flex-shrink-0">+ Add</button>
             </div>
-
             <div>
               <template x-if="monthBills.filter(b=>b.period==='15th').length===0">
                 <div class="px-6 py-10 text-center text-slate-400 text-sm">No bills yet — add your first one</div>
               </template>
               <template x-for="bill in monthBills.filter(b=>b.period==='15th')" :key="bill.id">
-                <div class="px-5 py-3.5 flex items-center gap-3 border-b border-slate-50 last:border-0" :class="bill.paid?'opacity-50':''">
-                  <button @click="togglePaid(bill.id)" class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all"
-                    :class="bill.paid?'bg-emerald-500 border-emerald-500 text-white':'border-slate-300 hover:border-purple-400'">
+                <div class="px-4 md:px-5 py-3.5 flex items-center gap-3 border-b border-slate-50 last:border-0" :class="bill.paid?'opacity-50':''">
+                  <button @click="togglePaid(bill.id)" class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all" :class="bill.paid?'bg-emerald-500 border-emerald-500 text-white':'border-slate-300 hover:border-purple-400'">
                     <svg x-show="bill.paid" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                   </button>
                   <div class="flex-1 min-w-0">
-                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-2" :class="bill.paid?'line-through':''">
+                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-1.5 flex-wrap" :class="bill.paid?'line-through':''">
                       <span x-text="bill.name"></span>
                       <span x-show="bill.autopay" class="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">Auto</span>
                     </div>
                     <div class="text-xs text-slate-400" x-text="bill.category"></div>
                   </div>
-                  <div class="flex items-center text-slate-900 font-bold text-sm num">
+                  <div class="flex items-center text-slate-900 font-bold text-sm num flex-shrink-0">
                     <span class="text-slate-400 mr-0.5">$</span>
                     <input type="number" :value="bill.amount" @change="updateBillAmount(bill.id,$event.target.value)" class="editable-amt text-slate-900" placeholder="0"/>
                   </div>
-                  <div class="flex gap-1">
-                    <button @click="editBill(bill)" class="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                    </button>
-                    <button @click="deleteBill(bill.id)" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
+                  <div class="flex gap-1 flex-shrink-0">
+                    <button @click="editBill(bill)" class="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                    <button @click="deleteBill(bill.id)" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                   </div>
                 </div>
               </template>
             </div>
-
-            <div class="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
+            <div class="px-4 md:px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
               <button @click="markAllPaid('15th')" class="text-xs text-slate-500 hover:text-emerald-600 font-semibold transition-colors">✓ Mark all paid</button>
               <div class="text-sm font-black text-slate-900 num" x-text="fmt(period2Total)"></div>
             </div>
@@ -347,84 +342,73 @@
 
           <!-- Subscriptions -->
           <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="px-4 md:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <div class="font-bold text-slate-900 flex items-center gap-2">
-                  Subscriptions
-                  <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Recurring</span>
-                </div>
+                <div class="font-bold text-slate-900 flex items-center gap-2 flex-wrap">Subscriptions <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Recurring</span></div>
                 <div class="text-xs text-slate-400 mt-0.5">Auto-billed monthly charges</div>
               </div>
-              <button @click="openBillModal('sub')" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
+              <button @click="openBillModal('sub')" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors ml-2 flex-shrink-0">+ Add</button>
             </div>
-
             <div>
               <template x-if="monthBills.filter(b=>b.period==='sub').length===0">
                 <div class="px-6 py-10 text-center text-slate-400 text-sm">No subscriptions yet</div>
               </template>
               <template x-for="bill in monthBills.filter(b=>b.period==='sub')" :key="bill.id">
-                <div class="px-5 py-3.5 flex items-center gap-3 border-b border-slate-50 last:border-0" :class="bill.paid?'opacity-50':''">
-                  <button @click="togglePaid(bill.id)" class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all"
-                    :class="bill.paid?'bg-emerald-500 border-emerald-500 text-white':'border-slate-300 hover:border-emerald-400'">
+                <div class="px-4 md:px-5 py-3.5 flex items-center gap-3 border-b border-slate-50 last:border-0" :class="bill.paid?'opacity-50':''">
+                  <button @click="togglePaid(bill.id)" class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all" :class="bill.paid?'bg-emerald-500 border-emerald-500 text-white':'border-slate-300 hover:border-emerald-400'">
                     <svg x-show="bill.paid" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                   </button>
                   <div class="flex-1 min-w-0">
-                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-2" :class="bill.paid?'line-through':''">
+                    <div class="text-sm font-semibold text-slate-900 flex items-center gap-1.5 flex-wrap" :class="bill.paid?'line-through':''">
                       <span x-text="bill.name"></span>
                       <span x-show="bill.autopay" class="text-xs bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-medium">Auto</span>
                     </div>
                     <div class="text-xs text-slate-400" x-text="bill.category"></div>
                   </div>
-                  <div class="flex items-center text-slate-900 font-bold text-sm num">
+                  <div class="flex items-center text-slate-900 font-bold text-sm num flex-shrink-0">
                     <span class="text-slate-400 mr-0.5">$</span>
                     <input type="number" :value="bill.amount" @change="updateBillAmount(bill.id,$event.target.value)" class="editable-amt text-slate-900" placeholder="0"/>
                   </div>
-                  <div class="flex gap-1">
-                    <button @click="editBill(bill)" class="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                    </button>
-                    <button @click="deleteBill(bill.id)" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
+                  <div class="flex gap-1 flex-shrink-0">
+                    <button @click="editBill(bill)" class="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                    <button @click="deleteBill(bill.id)" class="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                   </div>
                 </div>
               </template>
             </div>
-
-            <div class="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
+            <div class="px-4 md:px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
               <button @click="markAllPaid('sub')" class="text-xs text-slate-500 hover:text-emerald-600 font-semibold transition-colors">✓ Mark all paid</button>
               <div class="text-sm font-black text-emerald-600 num" x-text="fmt(subTotal)"></div>
             </div>
           </div>
         </div>
 
-        <div class="mt-5 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-800 flex items-center gap-2">
-          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span><strong>Tip:</strong> Click any amount to edit it directly. Your data auto-saves to this browser. Use <strong>Backup JSON</strong> in the sidebar to download a safety copy.</span>
+        <div class="mt-5 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-800 flex items-start gap-2">
+          <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span><strong>Tip:</strong> Tap any amount to edit it. Your data auto-saves. Use <strong>Backup JSON</strong> in the menu to download a safety copy.</span>
         </div>
       </div>
 
       <!-- ============ BUDGET ============ -->
       <div x-show="currentTab==='budget'">
-        <div class="flex items-center justify-between mb-6">
-          <p class="text-sm text-slate-500">Set monthly budgets per category and track actual spend</p>
-          <button @click="openBudgetModal()" class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Category</button>
+        <div class="flex items-center justify-between mb-5">
+          <p class="text-sm text-slate-500">Track spend vs budget by category</p>
+          <button @click="openBudgetModal()" class="flex items-center gap-2 px-3 md:px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs md:text-sm font-semibold transition-colors">+ Add Category</button>
         </div>
 
-        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+        <div class="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-100 mb-5">
           <div class="grid grid-cols-3 divide-x divide-slate-100 text-center">
-            <div class="px-6">
-              <div class="text-2xl font-black text-slate-900 num" x-text="fmt(budgets.reduce((s,c)=>s+c.budget,0))"></div>
-              <div class="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Total Budget</div>
+            <div class="px-2 md:px-6">
+              <div class="text-lg md:text-2xl font-black text-slate-900 num" x-text="fmt(budgets.reduce((s,c)=>s+c.budget,0))"></div>
+              <div class="text-[10px] md:text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Budget</div>
             </div>
-            <div class="px-6">
-              <div class="text-2xl font-black text-red-500 num" x-text="fmt(totalExpenses)"></div>
-              <div class="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Total Spent</div>
+            <div class="px-2 md:px-6">
+              <div class="text-lg md:text-2xl font-black text-red-500 num" x-text="fmt(totalExpenses)"></div>
+              <div class="text-[10px] md:text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Spent</div>
             </div>
-            <div class="px-6">
-              <div class="text-2xl font-black num" :class="(budgets.reduce((s,c)=>s+c.budget,0)-totalExpenses)>=0?'text-emerald-600':'text-red-500'"
-                x-text="fmt(budgets.reduce((s,c)=>s+c.budget,0)-totalExpenses)"></div>
-              <div class="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Remaining</div>
+            <div class="px-2 md:px-6">
+              <div class="text-lg md:text-2xl font-black num" :class="(budgets.reduce((s,c)=>s+c.budget,0)-totalExpenses)>=0?'text-emerald-600':'text-red-500'" x-text="fmt(budgets.reduce((s,c)=>s+c.budget,0)-totalExpenses)"></div>
+              <div class="text-[10px] md:text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Remaining</div>
             </div>
           </div>
         </div>
@@ -437,31 +421,28 @@
           </div>
         </template>
 
-        <div class="space-y-4">
+        <div class="space-y-3 md:space-y-4">
           <template x-for="cat in budgets" :key="cat.id">
-            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-              <div class="flex items-center gap-4">
-                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0" :style="'background:'+cat.color+'18'">
+            <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
+              <div class="flex items-center gap-3 md:gap-4">
+                <div class="w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0" :style="'background:'+cat.color+'18'">
                   <span x-text="cat.emoji||'📦'"></span>
                 </div>
-                <div class="flex-1">
-                  <div class="flex items-center justify-between mb-2.5">
-                    <div class="font-bold text-slate-900" x-text="cat.name"></div>
-                    <div class="flex items-center gap-4 text-sm num">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                    <div class="font-bold text-slate-900 text-sm" x-text="cat.name"></div>
+                    <div class="flex items-center gap-3 text-xs num">
                       <span class="text-slate-500">Spent: <strong class="text-slate-800" x-text="fmt(catSpend(cat.name))"></strong></span>
-                      <span class="text-slate-300">|</span>
-                      <span class="text-slate-500">Budget: $<input type="number" :value="cat.budget" @change="cat.budget=Number($event.target.value);save()" class="font-bold text-slate-800 w-20 outline-none border-b border-slate-200 focus:border-blue-400 bg-transparent text-right" /></span>
-                      <span class="font-bold" :class="catSpend(cat.name)>cat.budget?'text-red-500':'text-emerald-600'"
-                        x-text="catSpend(cat.name)>cat.budget?'⚠ Over '+fmt(catSpend(cat.name)-cat.budget):'✓ '+fmt(cat.budget-catSpend(cat.name))+' left'"></span>
+                      <span class="text-slate-500">Budget: $<input type="number" :value="cat.budget" @change="cat.budget=Number($event.target.value);save()" class="font-bold text-slate-800 w-14 md:w-20 outline-none border-b border-slate-200 focus:border-blue-400 bg-transparent text-right" /></span>
+                      <span class="font-bold" :class="catSpend(cat.name)>cat.budget?'text-red-500':'text-emerald-600'" x-text="catSpend(cat.name)>cat.budget?'⚠ Over':'✓ OK'"></span>
                     </div>
                   </div>
-                  <div class="w-full bg-slate-100 rounded-full h-2.5">
-                    <div class="h-2.5 rounded-full transition-all duration-700"
-                      :style="'width:'+Math.min((catSpend(cat.name)/cat.budget)*100,100)+'%;background:'+(catSpend(cat.name)/cat.budget>1?'#EF4444':catSpend(cat.name)/cat.budget>0.8?'#F59E0B':cat.color)"></div>
+                  <div class="w-full bg-slate-100 rounded-full h-2">
+                    <div class="h-2 rounded-full transition-all duration-700" :style="'width:'+Math.min((catSpend(cat.name)/cat.budget)*100,100)+'%;background:'+(catSpend(cat.name)/cat.budget>1?'#EF4444':catSpend(cat.name)/cat.budget>0.8?'#F59E0B':cat.color)"></div>
                   </div>
-                  <div class="flex justify-between text-xs text-slate-400 mt-1.5 num">
+                  <div class="flex justify-between text-[11px] text-slate-400 mt-1 num">
                     <span x-text="Math.round((catSpend(cat.name)/cat.budget)*100)+'% used'"></span>
-                    <span x-text="fmt(cat.budget-catSpend(cat.name))+' remaining'"></span>
+                    <span x-text="fmt(cat.budget-catSpend(cat.name))+' left'"></span>
                   </div>
                 </div>
                 <button @click="budgets=budgets.filter(c=>c.id!==cat.id);save()" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
@@ -475,22 +456,22 @@
 
       <!-- ============ INCOME ============ -->
       <div x-show="currentTab==='income'">
-        <div class="flex items-center justify-between mb-6">
-          <p class="text-sm text-slate-500">All income sources for <span class="font-semibold text-slate-700" x-text="monthName+' '+currentYear"></span></p>
-          <button @click="openIncomeModal()" class="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Income</button>
+        <div class="flex items-center justify-between mb-5">
+          <p class="text-sm text-slate-500">Income for <span class="font-semibold text-slate-700" x-text="monthName+' '+currentYear"></span></p>
+          <button @click="openIncomeModal()" class="flex items-center gap-2 px-3 md:px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs md:text-sm font-semibold transition-colors">+ Add Income</button>
         </div>
 
-        <div class="grid grid-cols-3 gap-5 mb-7">
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-5 mb-6">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
             <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Income</div>
             <div class="text-2xl font-black text-emerald-600 num" x-text="fmt(totalIncome)"></div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
             <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Tax Reserve (25%)</div>
             <div class="text-2xl font-black text-amber-500 num" x-text="fmt(totalIncome*0.25)"></div>
             <div class="text-xs text-slate-400 mt-1">Set aside for taxes</div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
             <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Spendable</div>
             <div class="text-2xl font-black text-slate-900 num" x-text="fmt(totalIncome*0.75)"></div>
             <div class="text-xs text-slate-400 mt-1">After tax reserve</div>
@@ -498,7 +479,7 @@
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-          <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-900">Income Entries</div>
+          <div class="px-4 md:px-6 py-4 border-b border-slate-100 font-bold text-slate-900">Income Entries</div>
           <template x-if="incomeEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length===0">
             <div class="px-6 py-14 text-center text-slate-400">
               <div class="text-5xl mb-3">💰</div>
@@ -507,16 +488,16 @@
             </div>
           </template>
           <template x-for="e in incomeEntries.filter(e=>e.month===currentMonth&&e.year===currentYear)" :key="e.id">
-            <div class="px-6 py-4 flex items-center gap-4 border-b border-slate-50 last:border-0">
-              <div class="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center">
+            <div class="px-4 md:px-6 py-4 flex items-center gap-3 md:gap-4 border-b border-slate-50 last:border-0">
+              <div class="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
                 <span x-text="catEmoji(e.category)"></span>
               </div>
-              <div class="flex-1">
-                <div class="text-sm font-semibold text-slate-900" x-text="e.source"></div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold text-slate-900 truncate" x-text="e.source"></div>
                 <div class="text-xs text-slate-400" x-text="e.date+' · '+e.category"></div>
               </div>
-              <div class="text-emerald-600 font-bold num" x-text="'+'+fmt(e.amount)"></div>
-              <button @click="incomeEntries=incomeEntries.filter(x=>x.id!==e.id);save();refreshCharts()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+              <div class="text-emerald-600 font-bold num text-sm flex-shrink-0" x-text="'+'+fmt(e.amount)"></div>
+              <button @click="incomeEntries=incomeEntries.filter(x=>x.id!==e.id);save();refreshCharts()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
@@ -526,28 +507,28 @@
 
       <!-- ============ EXPENSES ============ -->
       <div x-show="currentTab==='expenses'">
-        <div class="flex items-center justify-between mb-6">
-          <p class="text-sm text-slate-500">All expenses for <span class="font-semibold text-slate-700" x-text="monthName+' '+currentYear"></span></p>
-          <button @click="openExpenseModal()" class="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Expense</button>
+        <div class="flex items-center justify-between mb-5">
+          <p class="text-sm text-slate-500">Expenses for <span class="font-semibold text-slate-700" x-text="monthName+' '+currentYear"></span></p>
+          <button @click="openExpenseModal()" class="flex items-center gap-2 px-3 md:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs md:text-sm font-semibold transition-colors">+ Add Expense</button>
         </div>
 
-        <div class="grid grid-cols-3 gap-5 mb-7">
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-5 mb-6">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
             <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Expenses</div>
             <div class="text-2xl font-black text-red-500 num" x-text="fmt(totalExpenses)"></div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
             <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Transactions</div>
             <div class="text-2xl font-black text-slate-900 num" x-text="expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length"></div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
             <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Avg per Entry</div>
             <div class="text-2xl font-black text-slate-900 num" x-text="expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length>0?fmt(totalExpenses/expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length):'$0'"></div>
           </div>
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-          <div class="px-6 py-4 border-b border-slate-100 font-bold text-slate-900">Expense Entries</div>
+          <div class="px-4 md:px-6 py-4 border-b border-slate-100 font-bold text-slate-900">Expense Entries</div>
           <template x-if="expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear).length===0">
             <div class="px-6 py-14 text-center text-slate-400">
               <div class="text-5xl mb-3">💸</div>
@@ -555,16 +536,16 @@
             </div>
           </template>
           <template x-for="e in expenseEntries.filter(e=>e.month===currentMonth&&e.year===currentYear)" :key="e.id">
-            <div class="px-6 py-4 flex items-center gap-4 border-b border-slate-50 last:border-0">
-              <div class="w-9 h-9 rounded-xl flex items-center justify-center" :style="'background:'+catColor(e.category)+'20'">
+            <div class="px-4 md:px-6 py-4 flex items-center gap-3 md:gap-4 border-b border-slate-50 last:border-0">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" :style="'background:'+catColor(e.category)+'20'">
                 <span x-text="catEmoji(e.category)"></span>
               </div>
-              <div class="flex-1">
-                <div class="text-sm font-semibold text-slate-900" x-text="e.name"></div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold text-slate-900 truncate" x-text="e.name"></div>
                 <div class="text-xs text-slate-400" x-text="e.date+' · '+e.category"></div>
               </div>
-              <div class="text-red-500 font-bold num" x-text="'-'+fmt(e.amount)"></div>
-              <button @click="expenseEntries=expenseEntries.filter(x=>x.id!==e.id);save();refreshCharts()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+              <div class="text-red-500 font-bold num text-sm flex-shrink-0" x-text="'-'+fmt(e.amount)"></div>
+              <button @click="expenseEntries=expenseEntries.filter(x=>x.id!==e.id);save();refreshCharts()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
@@ -574,24 +555,24 @@
 
       <!-- ============ NET WORTH ============ -->
       <div x-show="currentTab==='networth'">
-        <div class="grid grid-cols-3 gap-5 mb-7">
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-5 mb-6">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
             <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Assets</div>
             <div class="text-2xl font-black text-emerald-600 num" x-text="fmt(totalAssets)"></div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
             <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total Liabilities</div>
             <div class="text-2xl font-black text-red-500 num" x-text="fmt(totalLiabilities)"></div>
           </div>
-          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100">
             <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Net Worth</div>
             <div class="text-2xl font-black num" :class="netWorth>=0?'text-blue-600':'text-red-600'" x-text="fmt(netWorth)"></div>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
           <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="px-4 md:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div class="font-bold text-slate-900">Assets 💎</div>
               <button @click="openAssetModal('asset')" class="text-xs bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
             </div>
@@ -599,24 +580,24 @@
               <div class="px-6 py-10 text-center text-slate-400 text-sm">No assets yet</div>
             </template>
             <template x-for="a in assets" :key="a.id">
-              <div class="px-6 py-4 flex items-center gap-3 border-b border-slate-50 last:border-0">
-                <div class="flex-1">
-                  <div class="text-sm font-semibold text-slate-900" x-text="a.name"></div>
+              <div class="px-4 md:px-6 py-4 flex items-center gap-3 border-b border-slate-50 last:border-0">
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-slate-900 truncate" x-text="a.name"></div>
                   <div class="text-xs text-slate-400" x-text="a.type"></div>
                 </div>
-                <div class="flex items-center gap-1 text-emerald-600 font-bold text-sm num">
-                  $<input type="number" :value="a.value" @change="a.value=Number($event.target.value);save()" class="w-24 text-right outline-none border-b border-transparent focus:border-emerald-400 bg-transparent text-emerald-600 font-bold" />
+                <div class="flex items-center gap-1 text-emerald-600 font-bold text-sm num flex-shrink-0">
+                  $<input type="number" :value="a.value" @change="a.value=Number($event.target.value);save()" class="w-20 md:w-24 text-right outline-none border-b border-transparent focus:border-emerald-400 bg-transparent text-emerald-600 font-bold" />
                 </div>
-                <button @click="assets=assets.filter(x=>x.id!==a.id);save()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                <button @click="assets=assets.filter(x=>x.id!==a.id);save()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
               </div>
             </template>
-            <div class="px-6 py-3 border-t border-slate-100 text-right text-sm font-black text-emerald-600 num" x-text="'Total: '+fmt(totalAssets)"></div>
+            <div class="px-4 md:px-6 py-3 border-t border-slate-100 text-right text-sm font-black text-emerald-600 num" x-text="'Total: '+fmt(totalAssets)"></div>
           </div>
 
           <div class="bg-white rounded-2xl shadow-sm border border-slate-100">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="px-4 md:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div class="font-bold text-slate-900">Liabilities 📉</div>
               <button @click="openAssetModal('liability')" class="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors">+ Add</button>
             </div>
@@ -624,29 +605,29 @@
               <div class="px-6 py-10 text-center text-slate-400 text-sm">No liabilities yet</div>
             </template>
             <template x-for="l in liabilities" :key="l.id">
-              <div class="px-6 py-4 flex items-center gap-3 border-b border-slate-50 last:border-0">
-                <div class="flex-1">
-                  <div class="text-sm font-semibold text-slate-900" x-text="l.name"></div>
+              <div class="px-4 md:px-6 py-4 flex items-center gap-3 border-b border-slate-50 last:border-0">
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-slate-900 truncate" x-text="l.name"></div>
                   <div class="text-xs text-slate-400" x-text="l.type"></div>
                 </div>
-                <div class="flex items-center gap-1 text-red-500 font-bold text-sm num">
-                  $<input type="number" :value="l.value" @change="l.value=Number($event.target.value);save()" class="w-24 text-right outline-none border-b border-transparent focus:border-red-400 bg-transparent text-red-500 font-bold" />
+                <div class="flex items-center gap-1 text-red-500 font-bold text-sm num flex-shrink-0">
+                  $<input type="number" :value="l.value" @change="l.value=Number($event.target.value);save()" class="w-20 md:w-24 text-right outline-none border-b border-transparent focus:border-red-400 bg-transparent text-red-500 font-bold" />
                 </div>
-                <button @click="liabilities=liabilities.filter(x=>x.id!==l.id);save()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                <button @click="liabilities=liabilities.filter(x=>x.id!==l.id);save()" class="p-1.5 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
               </div>
             </template>
-            <div class="px-6 py-3 border-t border-slate-100 text-right text-sm font-black text-red-500 num" x-text="'Total: '+fmt(totalLiabilities)"></div>
+            <div class="px-4 md:px-6 py-3 border-t border-slate-100 text-right text-sm font-black text-red-500 num" x-text="'Total: '+fmt(totalLiabilities)"></div>
           </div>
         </div>
       </div>
 
       <!-- ============ GOALS ============ -->
       <div x-show="currentTab==='goals'">
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center justify-between mb-5">
           <p class="text-sm text-slate-500">Savings goals and financial targets</p>
-          <button @click="openGoalModal()" class="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-semibold transition-colors">+ Add Goal</button>
+          <button @click="openGoalModal()" class="flex items-center gap-2 px-3 md:px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-xs md:text-sm font-semibold transition-colors">+ Add Goal</button>
         </div>
         <template x-if="goals.length===0">
           <div class="bg-white rounded-2xl p-14 text-center text-slate-400 shadow-sm border border-slate-100">
@@ -655,9 +636,9 @@
             <div class="text-sm mt-1">Set your first savings target above</div>
           </div>
         </template>
-        <div class="grid grid-cols-2 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
           <template x-for="g in goals" :key="g.id">
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <div class="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-slate-100">
               <div class="flex items-start justify-between mb-5">
                 <div>
                   <div class="font-bold text-slate-900" x-text="g.name"></div>
@@ -671,10 +652,7 @@
                 <div class="relative w-20 h-20 flex-shrink-0">
                   <svg class="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
                     <circle cx="40" cy="40" r="32" fill="none" stroke="#F1F5F9" stroke-width="7"/>
-                    <circle cx="40" cy="40" r="32" fill="none" :stroke="g.color||'#3B82F6'" stroke-width="7" stroke-linecap="round"
-                      :stroke-dasharray="201"
-                      :stroke-dashoffset="201-(201*Math.min(g.current/g.target,1))"
-                      style="transition:stroke-dashoffset 1s ease"/>
+                    <circle cx="40" cy="40" r="32" fill="none" :stroke="g.color||'#3B82F6'" stroke-width="7" stroke-linecap="round" :stroke-dasharray="201" :stroke-dashoffset="201-(201*Math.min(g.current/g.target,1))" style="transition:stroke-dashoffset 1s ease"/>
                   </svg>
                   <div class="absolute inset-0 flex items-center justify-center text-sm font-black text-slate-900 num" x-text="Math.round((g.current/g.target)*100)+'%'"></div>
                 </div>
@@ -697,15 +675,32 @@
   </main>
 </div>
 
-<!-- Toast -->
-<div x-show="toastMsg" x-transition.opacity class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium toast" x-text="toastMsg"></div>
+<!-- Toast (above bottom nav on mobile) -->
+<div x-show="toastMsg" x-transition.opacity class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium toast" x-text="toastMsg"></div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20 flex" style="padding-bottom:env(safe-area-inset-bottom)">
+  <template x-for="item in navItems" :key="'bn-'+item.id">
+    <button @click="switchTab(item.id)" class="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 relative transition-colors min-w-0"
+      :class="currentTab===item.id ? 'text-blue-500' : 'text-slate-400'">
+      <span class="text-lg leading-none" x-text="item.icon"></span>
+      <span class="text-[9px] font-semibold leading-none truncate w-full text-center px-0.5" x-text="item.label.split(' ')[0]"></span>
+      <template x-if="item.id==='bills' && upcomingBillsCount > 0">
+        <span class="absolute top-1 right-1 bg-amber-500 text-white text-[8px] rounded-full w-3.5 h-3.5 flex items-center justify-center font-bold" x-text="upcomingBillsCount"></span>
+      </template>
+    </button>
+  </template>
+</nav>
 
 <!-- ===== MODALS ===== -->
 
-<div x-show="modal==='bill'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
-  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900" x-text="editingId?'Edit Bill':'Add New Bill'"></h3></div>
-    <div class="px-6 py-5 space-y-4">
+<div x-show="modal==='bill'" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-bold text-slate-900" x-text="editingId?'Edit Bill':'Add New Bill'"></h3>
+      <button @click="modal=''" class="p-1 text-slate-400 hover:text-slate-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="px-5 py-4 space-y-4">
       <div><label class="lbl">Bill Name *</label><input type="text" x-model="form.name" placeholder="e.g., Rent, Netflix, Electric" class="inp"/></div>
       <div class="grid grid-cols-2 gap-4">
         <div><label class="lbl">Amount</label><input type="number" x-model="form.amount" placeholder="0.00" class="inp"/></div>
@@ -723,17 +718,20 @@
         <span class="text-sm text-slate-700">Auto-pay enabled</span>
       </label>
     </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+    <div class="px-5 py-4 border-t border-slate-100 flex gap-3">
       <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
       <button @click="saveBill()" class="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-colors">Save Bill</button>
     </div>
   </div>
 </div>
 
-<div x-show="modal==='income'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
-  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900">Add Income</h3></div>
-    <div class="px-6 py-5 space-y-4">
+<div x-show="modal==='income'" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-bold text-slate-900">Add Income</h3>
+      <button @click="modal=''" class="p-1 text-slate-400 hover:text-slate-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="px-5 py-4 space-y-4">
       <div><label class="lbl">Source *</label><input type="text" x-model="form.source" placeholder="e.g., YouTube, Sponsorship, Client" class="inp"/></div>
       <div class="grid grid-cols-2 gap-4">
         <div><label class="lbl">Amount *</label><input type="number" x-model="form.amount" placeholder="0.00" class="inp"/></div>
@@ -743,17 +741,20 @@
         <select x-model="form.category" class="inp"><option>YouTube</option><option>Sponsorship</option><option>Course</option><option>Consulting</option><option>Freelance</option><option>Investment</option><option>Other</option></select>
       </div>
     </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+    <div class="px-5 py-4 border-t border-slate-100 flex gap-3">
       <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
       <button @click="saveIncome()" class="flex-1 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-colors">Add Income</button>
     </div>
   </div>
 </div>
 
-<div x-show="modal==='expense'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
-  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900">Add Expense</h3></div>
-    <div class="px-6 py-5 space-y-4">
+<div x-show="modal==='expense'" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-bold text-slate-900">Add Expense</h3>
+      <button @click="modal=''" class="p-1 text-slate-400 hover:text-slate-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="px-5 py-4 space-y-4">
       <div><label class="lbl">Name *</label><input type="text" x-model="form.name" placeholder="e.g., Groceries, Gas, Adobe" class="inp"/></div>
       <div class="grid grid-cols-2 gap-4">
         <div><label class="lbl">Amount *</label><input type="number" x-model="form.amount" placeholder="0.00" class="inp"/></div>
@@ -763,32 +764,38 @@
         <select x-model="form.category" class="inp"><option>Housing</option><option>Food</option><option>Transportation</option><option>Utilities</option><option>Subscriptions</option><option>Health</option><option>Business</option><option>Entertainment</option><option>Shopping</option><option>Other</option></select>
       </div>
     </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+    <div class="px-5 py-4 border-t border-slate-100 flex gap-3">
       <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
       <button @click="saveExpense()" class="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors">Add Expense</button>
     </div>
   </div>
 </div>
 
-<div x-show="modal==='budget'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
-  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900">Add Budget Category</h3></div>
-    <div class="px-6 py-5 space-y-4">
+<div x-show="modal==='budget'" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-bold text-slate-900">Add Budget Category</h3>
+      <button @click="modal=''" class="p-1 text-slate-400 hover:text-slate-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="px-5 py-4 space-y-4">
       <div><label class="lbl">Category Name *</label><input type="text" x-model="form.name" placeholder="e.g., Groceries, Entertainment" class="inp"/></div>
       <div><label class="lbl">Monthly Budget *</label><input type="number" x-model="form.budget" placeholder="0.00" class="inp"/></div>
       <div><label class="lbl">Emoji</label><input type="text" x-model="form.emoji" placeholder="📦" class="inp"/></div>
     </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+    <div class="px-5 py-4 border-t border-slate-100 flex gap-3">
       <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
       <button @click="saveBudget()" class="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-colors">Add Category</button>
     </div>
   </div>
 </div>
 
-<div x-show="modal==='asset'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
-  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900" x-text="form.mode==='asset'?'Add Asset':'Add Liability'"></h3></div>
-    <div class="px-6 py-5 space-y-4">
+<div x-show="modal==='asset'" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-bold text-slate-900" x-text="form.mode==='asset'?'Add Asset':'Add Liability'"></h3>
+      <button @click="modal=''" class="p-1 text-slate-400 hover:text-slate-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="px-5 py-4 space-y-4">
       <div><label class="lbl">Name *</label><input type="text" x-model="form.name" :placeholder="form.mode==='asset'?'e.g., Checking, Stocks':'e.g., Credit Card, Car Loan'" class="inp"/></div>
       <div><label class="lbl">Value *</label><input type="number" x-model="form.value" placeholder="0.00" class="inp"/></div>
       <div><label class="lbl">Type</label>
@@ -796,17 +803,20 @@
         <select x-model="form.type" class="inp" x-show="form.mode==='liability'"><option>Credit Card</option><option>Car Loan</option><option>Student Loan</option><option>Mortgage</option><option>Personal Loan</option><option>Other Debt</option></select>
       </div>
     </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+    <div class="px-5 py-4 border-t border-slate-100 flex gap-3">
       <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
       <button @click="saveAsset()" class="flex-1 px-4 py-2.5 text-white rounded-xl text-sm font-semibold transition-colors" :class="form.mode==='asset'?'bg-emerald-500 hover:bg-emerald-600':'bg-red-500 hover:bg-red-600'" x-text="form.mode==='asset'?'Add Asset':'Add Liability'"></button>
     </div>
   </div>
 </div>
 
-<div x-show="modal==='goal'" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" @click.self="modal=''">
-  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-    <div class="px-6 py-5 border-b border-slate-100"><h3 class="font-bold text-slate-900">Add Savings Goal</h3></div>
-    <div class="px-6 py-5 space-y-4">
+<div x-show="modal==='goal'" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 backdrop-blur-sm" @click.self="modal=''">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-bold text-slate-900">Add Savings Goal</h3>
+      <button @click="modal=''" class="p-1 text-slate-400 hover:text-slate-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="px-5 py-4 space-y-4">
       <div><label class="lbl">Goal Name *</label><input type="text" x-model="form.name" placeholder="e.g., Emergency Fund, Vacation" class="inp"/></div>
       <div><label class="lbl">Description</label><input type="text" x-model="form.description" placeholder="What is this goal for?" class="inp"/></div>
       <div class="grid grid-cols-2 gap-4">
@@ -814,7 +824,7 @@
         <div><label class="lbl">Currently Saved</label><input type="number" x-model="form.current" placeholder="0.00" class="inp"/></div>
       </div>
     </div>
-    <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+    <div class="px-5 py-4 border-t border-slate-100 flex gap-3">
       <button @click="modal=''" class="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
       <button @click="saveGoal()" class="flex-1 px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-semibold transition-colors">Add Goal</button>
     </div>
@@ -838,6 +848,7 @@ function app(){
     editingId:null,
     form:{},
     toastMsg:'',
+    drawerOpen:false,
 
     bills:[],
     incomeEntries:[],
@@ -916,13 +927,10 @@ function app(){
       const prev=localStorage.getItem('fos_seed_version');
       if(prev!==SEED_VERSION){
         if(!prev){
-          // Brand new install — clean slate
           this.bills=[];
           this.seededMonths={};
         } else {
-          // v3 → v4: remove the standalone "Claude" subscription (kept "Claude Cowork")
           this.bills=this.bills.filter(b=>!(b.period==='sub'&&b.name==='Claude'));
-          // Backfill any missing template (subs and bills) into seeded months
           Object.keys(this.seededMonths).forEach(key=>{
             const [y,m]=key.split('-').map(Number);
             this.billTemplates.forEach((t,i)=>{
@@ -932,7 +940,6 @@ function app(){
               }
             });
           });
-          // Lock subscription amounts to template values
           const subs=this.billTemplates.filter(t=>t.period==='sub');
           this.bills.forEach(b=>{
             if(b.period==='sub'){
@@ -940,7 +947,6 @@ function app(){
               if(tpl&&typeof tpl.amount==='number')b.amount=tpl.amount;
             }
           });
-          // v8 → v9: lock fixed amounts for Rent (1st=$400 save, 15th=$900 pay), Insurance, Car Payment, Sofia's Credit Card, Best Buy Credit Card
           const fixedAmounts=[
             {name:'Rent',period:'1st',amount:400},
             {name:'Rent',period:'15th',amount:900},
